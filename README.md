@@ -1,2 +1,2 @@
-# AMscripts_mouseEbryoFISH
+# AMscripts_mouseEmbryoFISH
 scripts regarding FISH data of gastrulating mouse embryo (amissarova)
