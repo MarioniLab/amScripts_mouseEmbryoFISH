@@ -1,0 +1,77 @@
+---
+title: "QC and exploratory plots for embryo seqFISH."
+output:
+  BiocStyle::html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes  
+    titlecaps: true
+---
+  
+Load sce; filter out cells with assigned null area and empty cells.
+    
+```{r load-data, message = FALSE, warning = FALSE}
+    
+knitr::opts_chunk$set(cache=F, warning = F, message = F, cache.lazy = F)
+set.seed(42)
+library(biomaRt) 
+library(scran)
+library(Matrix)
+library(igraph)
+library(BiocNeighbors)
+library(SingleCellExperiment)
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(ggpubr)
+library(viridis)
+library(dbscan)
+library(reshape2)
+library(dendextend)
+library(gplots)
+library(RColorBrewer)
+
+root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
+figures.dir = paste0(root.dir, "figures/QC/")  
+
+# load sce files with counts data; clean from cells with 0 area and total # mRNA < user's threshold (default = 0)
+load_embryo_8.5(threshTotalRNA = 0)
+
+#####
+# cell size selection (write as a function)
+meta$sqrt.area = sqrt(meta$Area)
+pnorm.fit = pnorm(meta$sqrt.area, mean = median(meta$sqrt.area), 
+                           sd = mad(meta$sqrt.area) , lower.tail = F)
+thresh.sqrt = min(meta$sqrt.area[which(p.adjust(pnorm.fit, method = "fdr") < 0.05)])
+idx = meta$sqrt.area <= thresh.sqrt
+meta = meta[idx,]
+sce = sce[,idx]
+#####
+
+```
+
+
+# Per gene
+
+## Area VS Expression
+
+```{r area-VS-expression, message = FALSE, warning = FALSE, fig.wide = TRUE, fig.cap = "Correlation with cell area VS correlation with gene counts"}
+
+counts = counts(sce)
+genes = rownames(sce)
+for (i in genes) {
+  print(i)
+  getAreaExpressionPerGene(i, counts, meta, paste0(figures.dir, "AreaExpression_perGene/"))
+}
+
+
+```
+
+# Session Info
+```{r sessinf}
+sessionInfo()
+```
+
+
+

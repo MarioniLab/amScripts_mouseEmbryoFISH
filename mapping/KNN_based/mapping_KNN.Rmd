@@ -1,0 +1,135 @@
+---
+title: "Defining Clusters"
+output:
+  BiocStyle::html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes  
+  html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: true
+    theme: united
+---
+
+# Load dependencies and source data
+
+```{r load_data, message=FALSE}
+
+library(Matrix)
+library(scran)
+library(BiocParallel)
+ncores = 6
+mcparam = SnowParam(workers = ncores)
+register(mcparam)
+library(igraph)
+library(reshape2)
+library(knitr)
+library(scater)
+library(scales)
+library(biomaRt)
+
+#root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
+root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/visualization_functions.R"))
+
+# load sce files with counts data; clean from cells with 0 area and total # mRNA < user's threshold 
+load_embryo_8.5(threshTotalRNA = 0, filterNullArea = T, filterBigClumps = T)
+# discard Xist (and Cavin3 for now since there is a mismatch)
+idx = setdiff(1:dim(sce)[1], which(rownames(sce) %in% c("Xist", "Cavin3")) )
+sce = sce[idx,]
+
+# load scRNA-seq atlas
+load_data_atlas(rownames_ensembl = F)
+sce.atlas = scater::normalize(sce.atlas)
+meta.atlas$celltype[meta.atlas$doublet] = "Doublet"
+meta.atlas$celltype[meta.atlas$stripped] = "Stripped"
+# keep only those genes that are in seqFISH (excluding Xist and Cavin3)
+idx = rownames(sce.atlas) %in% rownames(sce)
+sce.atlas = sce.atlas[idx,]
+
+set.seed(42)
+
+
+```
+
+This script performs KNN based mapping: seqFISH onto Jonny's atlas.
+
+# Mapping 
+
+```{r mapping-functions}
+
+mapEmbryo = function(sce.atlas, meta.atlas, sce, meta, assay.type, k){
+  require(scran)
+  require(BiocNeighbors)
+  
+  # z-score seqFISH
+  counts = assay(sce, assay.type)
+  z.counts = apply(counts, 1, function(x){
+    return(scale(x))
+  })
+  rownames(z.counts) = colnames(counts)
+  z.counts = z.counts[,order(colnames(z.counts))]
+  
+  # z-score atlas
+  counts.atlas = assay(sce.atlas, "logcounts")
+  z.counts.atlas = apply(counts.atlas, 1, function(x){
+    return(scale(x))
+  })
+  rownames(z.counts.atlas) = colnames(counts.atlas)
+  z.counts.atlas = z.counts.atlas[,order(colnames(z.counts.atlas))]
+  
+  # knn query
+  knns = queryKNN(z.counts.atlas, z.counts, k = k, get.index = TRUE, get.distance = TRUE)
+  k.mapped = t(apply(knns$index, 1, function(x) meta.atlas$cell[x]))
+  celltypes = t(apply(k.mapped, 1, function(x) meta.atlas$celltype[match(x, meta.atlas$cell)]))
+  celltype.mapped = apply(celltypes, 1, function(x) getmode(x, 1:length(x)))
+  celltype.mapped.fraction = apply(celltypes, 1, function(x) mean(x == getmode(x, 1:length(x))))
+  celltype.mapped.match = t(apply(celltypes, 1, function(x) match(x, getmode(x, 1:length(x)))))
+  knns$distance = knns$distance * celltype.mapped.match
+  distance.mapped = rowMeans(knns$distance, na.rm = TRUE)
+  
+  out = lapply(1:dim(knns$index)[1], function(x){
+    list(cells.mapped = k.mapped[x,],
+         celltype.mapped = celltype.mapped[x],
+         celltype.mapped.fraction = celltype.mapped.fraction[x],
+         distance.mapped = distance.mapped[x])
+  })
+  names(out) = meta$cell
+  return(out)
+}
+
+```
+
+The mapping is performed for each embryo separately (since there is no batch correction).
+
+```{r mapping}
+
+unq.embryo = meta$embryo
+
+# for counts normalized by libsize
+mappings.libsize = bplapply(unq.embryo, function(x){
+  mapEmbryo(sce.atlas, meta.atlas, sce[, meta$embryo == x], meta[meta$embryo == x,], 
+            assay.type = "logcounts.libsize", k = 10)
+}, BPPARAM=mcparam)
+names(mappings.libsize) = unq.embryo
+saveRDS(mappings.libsize, file = paste0( root.dir, "data/mapping/logcounts_libsize__knn.rds"))
+
+# for counts normalized by area
+mappings.area = bplapply(unq.embryo, function(x){
+  mapEmbryo(sce.atlas, meta.atlas, sce[, meta$embryo == x], meta[meta$embryo == x,], 
+            assay.type = "logcounts.area", k = 10)
+}, BPPARAM=mcparam)
+names(mappings.libsize) = unq.embryo
+saveRDS(mappings.libsize, file = paste0( root.dir, "data/mapping/logcounts_area__knn.rds"))
+
+```
+
+
+#Session Info
+```{r sessinf}
+sessionInfo()
+```

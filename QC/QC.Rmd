@@ -1,0 +1,369 @@
+---
+title: "QC and exploratory plots for embryo seqFISH."
+output:
+  BiocStyle::html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes  
+    titlecaps: true
+---
+  
+Load sce; filter out cells with assigned null area and empty cells.
+    
+```{r load-data, message = FALSE, warning = FALSE}
+    
+knitr::opts_chunk$set(cache=F, warning = F, message = F, cache.lazy = F)
+set.seed(42)
+library(biomaRt) 
+library(scran)
+library(Matrix)
+library(igraph)
+library(BiocNeighbors)
+library(SingleCellExperiment)
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(ggpubr)
+library(viridis)
+library(dbscan)
+library(reshape2)
+library(dendextend)
+library(gplots)
+library(RColorBrewer)
+
+root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
+figures.dir = paste0(root.dir, "figures/QC/")  
+
+# load sce files with counts data; clean from cells with 0 area and total # mRNA < user's threshold (default = 0)
+load_embryo_8.5(threshTotalRNA = 0)
+
+```
+
+# Cell size
+
+**Assumption: cell size (along any axis) is normally distributed and cell's area scales as a square function of cell's size.**
+
+Let's see how cell size distribution looks like.
+
+## Cell size distribution
+
+```{r cellSize-distr, message = FALSE, warning = FALSE, fig.wide = TRUE, fig.cap = "Overall cell size distribution."}
+
+meta$sqrt.area = sqrt(meta$Area)
+p1 <- ggplot(data = meta, aes(x = sqrt.area)) +
+  geom_density(alpha=.5, fill="firebrick") +
+  labs(x = "sqrt(area)", y = "PDF")
+p2 <- ggplot(data = meta, aes(x = sqrt.area)) + 
+  stat_ecdf(geom = "step") + 
+  labs(x = "sqrt(area)", y = "eCDF")
+ggarrange(p1, p2, nrow = 2)
+
+```
+
+*Heavily skewed right tail -> suggestive of the fact that we misinterpretate big areas as cells.*
+**Possible reason: occasionally incorrect mask segmentation (software can't detect cell wall) -> two (or more) cells merge together.**
+
+**First wave filtering: to discard really big cells which are potentially simply cell clumps - fit Gaussain (centre - median, sd - mad) and consider cells outlying if their cell size has a corresponding FDR-adjusted p<0.05 (right tail).**
+
+## Cell size distribution with cutting off clumps
+
+```{r cellSize-distr-w-filtering, message = FALSE, warning = FALSE, fig.wide = TRUE, fig.cap = "Cell size distribution for kept cells."}
+
+# find threshold for too big and too small cell sizes
+pnorm.fit = pnorm(meta$sqrt.area, mean = median(meta$sqrt.area), 
+                           sd = mad(meta$sqrt.area) , lower.tail = F)
+thresh.sqrt = min(meta$sqrt.area[which(p.adjust(pnorm.fit, method = "fdr") < 0.05)])
+thresh = thresh.sqrt^2
+
+
+p1 <- ggplot(data = meta, aes(x = sqrt.area)) +
+  geom_density(alpha=.5, fill="firebrick") +
+  geom_vline(aes(xintercept=thresh.sqrt), color="firebrick", size=1) +
+  labs(x = "sqrt(area)", y = "PDF")
+p2 <- ggplot(data = meta[meta$sqrt.area <= thresh.sqrt,], aes(x = sqrt.area)) +
+  geom_histogram(alpha=.5, color="black", fill="firebrick", bins = 100) +
+  labs(x = "sqrt(area)", y = "PDF") + 
+  xlim(min(meta$sqrt.area ), thresh.sqrt)
+
+p3 <- ggplot(data = meta[meta$sqrt.area <= thresh.sqrt,], aes(x = sqrt.area)) + 
+  stat_ecdf(geom = "step") + 
+  labs(x = "sqrt(area)", y = "eCDF")
+ggarrange(p1, p2, p3, nrow = 3, labels = c("PDF: all cells with plotted threshold", 
+                                           "PDF: all cells below threshold", 
+                                           "CDF: all cells below threshold")) 
+
+print( paste0( "Discarded ", sum(meta$sqrt.area > thresh.sqrt), " oversized cells (out of ", 
+                   dim(meta)[1], "): ", round( mean(meta$sqrt.area > thresh.sqrt)*100, 2), "%" ))
+idx = meta$sqrt.area <= thresh.sqrt
+meta = meta[idx,]
+sce = sce[,idx]
+
+```
+
+# Total mRNA count (libsize)
+
+## Distribution
+
+```{r libsize-distr, message = FALSE, warning = FALSE, fig.wide = TRUE, fig.cap = "Total #mRNA distribution."}
+
+p1 <- ggplot(data = meta, aes(x = libsize)) +
+  geom_histogram(alpha=.5, color="black", fill="firebrick", bins = 100) +
+  labs(x = "Libsize", y = "#")
+p2 <- ggplot(data = meta, aes(x = libsize)) + 
+  stat_ecdf(geom = "step") + 
+  labs(x = "Libsize", y = "eCDF")
+ggarrange(p1, p2, nrow = 2) 
+
+```
+
+*Median number of mRNA molecules is ~70; mean is ~95.*.
+
+Now let's look how correspond cell area and libsize.
+
+## Cell area VS libsize
+
+### Overall
+
+```{r total-mRNA-VS-cellSize, message = FALSE, warning = FALSE, fig.wide = TRUE, fig.cap = "Total # mRNA (libsize) VS cell area"}
+
+# plot
+p1 <- ggplot(meta, aes(x = Area, y = libsize)) + 
+  ggtitle( paste0( "R = ", round( cor(meta$Area, meta$libsize, method = "pearson") , 2))) +
+  geom_bin2d(bins = 100) +
+  scale_fill_continuous(type = "viridis")
+p1
+
+```
+
+*Good concordance between the two metrics: expected. Nevertheless, there is a separate subpopulation of cells with ~big area but very little number of mRNA molecules. Potentially belong to few specific cell types imposing this transcriptional depletion (low # of mRNA) - check once CT mapping is done!*
+
+Now let's get the statistics on per gwne basis.
+
+# Per gene
+
+Each dot - one gene; CV = noise
+
+## Overall stat
+
+```{r gene-stat, message = FALSE, warning = FALSE, fig.wide = TRUE, fig.cap = "Correlation with cell area VS correlation with libsize; avg expression."}
+
+# for now is done on raw counts; of potential interest to redo on normalized counts as well
+genes = rownames(sce)
+stat.perGene = lapply(genes, function(x){
+  counts.gene = data.frame( uniqueID = colnames( counts(sce) ),
+                            counts = counts(sce)[x,])
+  df = merge(meta , counts.gene , by = "uniqueID", all.x = T)
+  out = data.frame(corr.area = cor(df$Area, df$counts, method = "pearson"),
+             corr.libsize = cor(df$libsize, df$counts, method = "pearson"), 
+             mean = mean(df$counts), median = median(df$counts), sd = sd(df$counts))
+  return( out )
+})
+names(stat.perGene) = genes
+stat.perGene = bind_rows(stat.perGene, .id = "gene")
+stat.perGene$CV = stat.perGene$sd/stat.perGene$mean
+
+p1 <- ggplot(data = stat.perGene, aes(x = corr.area, 
+                                      y = corr.libsize, col = CV )) + geom_point(size=1) + 
+  scale_color_gradient(low = "darkkhaki", high = "darkgreen", "CV") + 
+  labs(x = "corr with area", y = "corr with libsize")
+p2 <- ggplot(data = stat.perGene, aes(x = mean, 
+                                      y = corr.area, col = CV )) + geom_point(size=1) + 
+  scale_color_gradient(low = "darkkhaki", high = "darkgreen", "CV") +
+  labs(y = "corr with area")
+ggarrange(p1, p2, nrow = 2, common.legend = T)
+
+
+```
+
+*These 3 metrics scale together: correlation between gene counts and cell area; correaltion between gene expression and libsize; average gene counts - expected.*
+
+Let's look into behaviour of 10 genes which show the highest correaltion with cell area.
+
+## Top 10 genes (based on correlation with area genes)
+
+```{r Top-corr-w-area, message = FALSE, warning = FALSE, fig.wide = TRUE, fig.cap = "Avg expression VS correlation with area for TOP10 genes."}
+
+stat.perGene = stat.perGene[order(stat.perGene$corr.area, decreasing = T),]
+# Just top N genes 
+N = 10
+top.genes = stat.perGene$gene[1:N]
+ggplot(data = stat.perGene[1:N, ], 
+             aes(x = corr.area, y = mean, col = factor(gene), label = gene)) +
+  geom_point() + ggtitle("Top 10 genes (based on corr with area)") +
+  geom_text(aes(color = factor(gene)), hjust = 0.5, vjust = -0.5)
+
+# get density plots (save in figures.dir)
+for (i in top.genes) {
+  getDensityPlotsPerGene(i, counts(sce), meta, paste0(figures.dir, "PDF_perGene/"))
+}
+
+```
+
+*All genes show very high average expression.*
+
+Below is very crude one-liner for each gene and subfollowing specification where this gene is expressed (based on Jonny's webpage). In bold - genes that are expressed more or less everywhere.
+
+
+Tcf7l1 - This gene encodes a member of the T cell factor/lymphoid enhancer factor family of transcription factors: not everywhere - not in erythroids and ExE ectoderm.
+
+**Setd1a - The protein encoded by this gene is a component of a histone methyltransferase (HMT) complex that produces mono-, di-, and trimethylated histone H3 at Lys4: ~everywhere.**
+
+Lin28a - This gene encodes a LIN-28 family RNA-binding protein that acts as a posttranscriptional regulator of genes involved in developmental timing and self-renewal in embryonic stem cells: not in the last erythroid. 
+
+**Myh9 - This gene encodes a conventional non-muscle myosin: ~everywhere.**
+
+**Dnmt3a - Required for genome-wide de novo methylation and is essential for the establishment of DNA methylation patterns during development: ~everywhere, but more at earlier stages.**
+
+**Kmt2d - The protein encoded by this gene is a histone methyltransferase that methylates the Lys-4 position of histone H3: ~ everywhere, but fairly sparse.**
+
+Tead2 - Transcription factor which plays a key role in the Hippo signaling pathway, a pathway involved in organ size control and tumor suppression by restricting proliferation and promoting apoptosis: not everywhere - not in erythroids and ExE ectoderm.
+
+**Tet3 - Dioxygenase that catalyzes the conversion of the modified genomic base 5-methylcytosine (5mC) into 5-hydroxymethylcytosine (5hmC) and plays a key role in epigenetic chromatin reprogramming in the zygote following fertilization: ~everywhere.**
+
+Sox4 - This intronless gene encodes a member of the SOX (SRY-related HMG-box) family of transcription factors involved in the regulation of embryonic development and in the determination of the cell fate: not in erythroids, ExE ectoderm and ExE endoderm. 
+
+**Ep300 - Functions as histone acetyltransferase and regulates transcription via chromatin remodeling: ~everywhere.**
+
+Let's see if they co-express.
+
+### Distribution of co-expression for TOP10 genes
+
+```{r distr-coexpress, message = FALSE, warning = FALSE, fig.wide = TRUE, fig.cap = "Distribution of pairwise correlations between gene counts."}
+
+counts = data.frame(t(counts(sce)))
+counts.top = counts[,top.genes]
+corr.top = cor(counts.top) 
+corr.top.df = data.frame(corr = corr.top[lower.tri(corr.top, diag=FALSE)])
+
+ggplot(corr.top.df, aes(x = corr)) + 
+  geom_histogram(alpha=.5, color="black", fill="firebrick")
+
+
+```
+
+*All the genes are fairly strongly co-expressed - expected.*
+
+Let's perform hierarchical clustering to see whether there are some subgroups.
+
+### Hierarchical clustering (based on co-expression).
+
+```{r Cluster, message = FALSE, warning = FALSE, fig.wide = TRUE, fig.cap = "Distribution of pairwise correlations between gene counts."}
+
+dist.top = as.dist(1 - corr.top)
+tree.top = hclust(dist.top, method="complete")
+dend.top = as.dendrogram(tree.top) # create dendrogram object
+
+# plot correlation heatmap (clustered)
+color.scheme <- rev(brewer.pal(10,"RdBu")) # generate the color scheme to use
+heatmap.2(corr.top, 
+          Rowv = ladderize(dend.top), Colv = ladderize(dend.top), 
+          dendrogram = "both", revC = TRUE, trace = "none", 
+          density.info = "density", col = color.scheme, key = FALSE,
+          breaks = seq(0,1,"by"=.1),
+          labRow = labels(ladderize(dend.top)), 
+          labCol = labels(ladderize(dend.top)))
+
+```
+
+*Based on hierarchical clustering, the prominent subgroup could be Kmt2d, Tead2 and Tet3, but according to Jonny's app, they dont seem to be always expressed in the same CTs.*
+
+Let's look in overall co-expression (expect to have clustering: markers of the same CT are expected to be highly co-expressed).
+
+# All genes
+
+## Co-expression
+
+### Distribution of co-expression for all genes
+
+```{r co-expr-all, message = FALSE, warning = FALSE, fig.wide = TRUE, fig.cap = "Distribution of co-expression correlations."}
+
+counts = data.frame(t(counts(sce)))
+corr.all = cor(counts)
+corr.all.df = data.frame(corr = corr.all[lower.tri(corr.all, diag=FALSE)])
+corr.top.df = data.frame(corr = corr.top[lower.tri(corr.top, diag=FALSE)])
+
+p1 <- ggplot(corr.all.df, aes(x = corr)) + 
+  geom_density(alpha=.5, fill="firebrick") + xlim(-.1, 1) 
+p2 <- ggplot(corr.top.df, aes(x = corr)) + 
+  geom_density(alpha=.5, fill="firebrick") + xlim(-.1, 1) 
+ggarrange(p1, p2, nrow=2, labels = c(paste0("All: median R = ", round(median(corr.all.df$corr),2) ),
+                                     paste0("Top10: median R = ", round(median(corr.top.df$corr),2) )))
+
+```
+
+*There is much more co-expression in highly abundant genes - makes sense.*
+
+Let's perform hierarchical clustering on all genes (for co-expression).
+
+### Hierarchical clustering of co-expression
+
+```{r hierarchical-clustering-all, message = FALSE, warning = FALSE, fig.wide = TRUE, fig.cap = "Clustering of co-expression for all genes."}
+
+genes = colnames(counts)
+dist.all = as.dist(1 - corr.all)
+tree.all = hclust(dist.all, method="complete")
+dend.all = as.dendrogram(tree.all) # create dendrogram object
+
+# plot correlation heatmap (clustered)
+color.scheme <- rev(brewer.pal(10,"RdBu")) # generate the color scheme to use
+p <- heatmap.2(corr.all, 
+          Rowv = ladderize(dend.all), Colv = ladderize(dend.all), 
+          dendrogram = "both", revC = FALSE, trace = "none", 
+          density.info = "none", col = color.scheme, key = FALSE,
+          labRow = TRUE, labCol = FALSE)
+```
+
+Now let's see whether there any patterns between ranking of the genes along the hierarchical clustering and mean or correlation with area.
+
+### Rank from the clustering
+
+```{r compare-rank-w-other-stats, message = FALSE, warning = FALSE, fig.wide = TRUE, fig.cap = "Clustering rank VS mean and corr with area for all genes."}
+
+# get the order of genes
+genes.ordered = data.frame(gene = genes[p$rowInd], rank = c(1:length(genes)))
+stat.perGene = merge(genes.ordered, stat.perGene, by="gene", all.x=T)
+stat.perGene = stat.perGene[order(stat.perGene$rank),]
+
+# all genes
+p1 <- ggplot(stat.perGene , aes(x = rank, y = corr.area)) + geom_point() + 
+  labs(y = "corr with area")
+p2 <- ggplot(stat.perGene , aes(x = rank, y = mean)) + geom_point()
+ggarrange(p1,p2, nrow = 2)
+
+```
+
+*Don't see much of the pattern, however, TOP10 genes naively seem to be split between 2 clusters*.
+
+Let's zoom in TOP10.
+
+```{r compare-rank-w-other-stats-top10, message = FALSE, warning = FALSE, fig.wide = TRUE, fig.cap = "Clustering rank VS mean and corr with area for TOP10 genes."}
+
+# TOP10
+idx = stat.perGene$gene %in% top.genes
+p1 <- ggplot(stat.perGene[idx,] , aes(x = rank, y = corr.area, col = factor(gene), label = gene)) + 
+  labs(y = "corr with area") +
+  geom_point() + geom_text(aes(color = factor(gene)), hjust = 0.5, vjust = -0.5) + ylim(0.32, 0.5) 
+  
+p2 <- ggplot(stat.perGene[idx,] , aes(x = rank, y = mean, col = factor(gene), label = gene)) + 
+  geom_point() + geom_text(aes(color = factor(gene)), hjust = 0.5, vjust = -0.5) + ylim(.7, 4)
+
+ggarrange(p1,p2, nrow = 2, common.legend = T)
+
+```
+
+*In TOP10 genes there are effectively 2 clusters (based on co-expression): Kmt2d, Tet3, Tcf7l1 and the rest.*
+
+I guess that if we want (do we? I dont really) to perform normalization not by total mRNA but only by some homogenous subset of genes, it makes sense to choose one of these clusters. Based on average expression, func annotation, co-expression between and co-expression with area and libsize, cluster {Kmt2d, Tcf7l1 and Tet3} seems like a slightly better choice (more ubiqutiously expressed, more generic functions and higher mutual co-expression).
+
+**Anyway: for now I added log2 normalization by area and by libsize (function in core_functions, returns sce based on the originla file with 2 additional assays: logcounts.normByArea and logcounts.normByLibsize). **
+
+**To do next: a) check whether clustering by co-expression resembles clustering of markers by CT -> after compiling the annotation. b) Look into gene expression distribution in space. c) CT mapping/clustering.**
+
+# Session Info
+```{r sessinf}
+sessionInfo()
+```
+
+
+
