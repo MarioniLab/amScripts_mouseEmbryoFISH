@@ -116,7 +116,7 @@ mappings.libsize = bplapply(unq.embryo, function(x){
             assay.type = "logcounts.libsize", k = 10)
 }, BPPARAM=mcparam)
 names(mappings.libsize) = unq.embryo
-saveRDS(mappings.libsize, file = paste0( root.dir, "data/mapping/logcounts_libsize__knn.rds"))
+saveRDS(mappings.libsize, file = paste0( root.dir, "data/8_5/mapping/logcounts_libsize__knn.rds"))
 
 # for counts normalized by area
 mappings.area = bplapply(unq.embryo, function(x){
@@ -124,7 +124,7 @@ mappings.area = bplapply(unq.embryo, function(x){
             assay.type = "logcounts.area", k = 10)
 }, BPPARAM=mcparam)
 names(mappings.libsize) = unq.embryo
-saveRDS(mappings.libsize, file = paste0( root.dir, "data/mapping/logcounts_area__knn.rds"))
+saveRDS(mappings.libsize, file = paste0( root.dir, "data/8_5/mapping/logcounts_area__knn.rds"))
 
 ```
 
