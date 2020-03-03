@@ -33,10 +33,11 @@ library(RColorBrewer)
 
 root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
 source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/visualization_functions.R"))
 figures.dir = paste0(root.dir, "figures/QC/")  
 
 # load sce files with counts data; clean from cells with 0 area and total # mRNA < user's threshold (default = 0)
-load_embryo_8.5(threshTotalRNA = 0)
+load_embryo_8.5(threshTotalRNA = 0, filterBigClumps = F, dir = "local")
 
 ```
 

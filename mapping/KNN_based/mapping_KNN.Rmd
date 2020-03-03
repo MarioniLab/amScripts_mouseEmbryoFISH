@@ -37,7 +37,7 @@ source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
 source(paste0(root.dir, "amScripts_mouseEmbryoFISH/visualization_functions.R"))
 
 # load sce files with counts data; clean from cells with 0 area and total # mRNA < user's threshold 
-load_embryo_8.5(threshTotalRNA = 0, filterNullArea = T, filterBigClumps = T)
+load_embryo_8.5(threshTotalRNA = 0, filterNullArea = T, filterBigClumps = T, dir = "cluster")
 # discard Xist (and Cavin3 for now since there is a mismatch)
 idx = setdiff(1:dim(sce)[1], which(rownames(sce) %in% c("Xist", "Cavin3")) )
 sce = sce[idx,]
@@ -61,6 +61,19 @@ This script performs KNN based mapping: seqFISH onto Jonny's atlas.
 # Mapping 
 
 ```{r mapping}
+
+getmode <- function(v, dist) {
+  tab = table(v)
+  #if tie, break to shortest distance
+  if(sum(tab == max(tab)) > 1){
+    tied = names(tab)[tab == max(tab)]
+    sub = dist[v %in% tied]
+    names(sub) = v[v %in% tied]
+    return(names(sub)[which.min(sub)])
+  } else {
+    return(names(tab)[which.max(tab)])
+  }
+}
 
 mapEmbryo = function(sce.atlas, meta.atlas, sce, meta, assay.type, k){
   require(scran)

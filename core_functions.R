@@ -1,10 +1,15 @@
 # load embryo 8.5 data
-load_embryo_8.5 = function(filterNullArea = TRUE, threshTotalRNA, filterBigClumps = TRUE){
+load_embryo_8.5 = function(filterNullArea = TRUE, threshTotalRNA, filterBigClumps = TRUE, 
+                           dir = "local"){
   
   require(SingleCellExperiment)
   require(scater)
-  #data.dir = "/Users/alsu/Develop/spatial/mouse_embryo/data/8_5/source/sce_all.Rds"
-  data.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/data/8_5/source/sce_all.Rds"
+  
+  if (dir == "cluster") {
+    data.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/data/8_5/source/sce_all.Rds"
+  } else {
+    data.dir = "/Users/alsu/Develop/spatial/mouse_embryo/data/8_5/source/sce_all.Rds"
+  }
   
   sce = readRDS( data.dir )
   meta = colData(sce)
@@ -82,26 +87,21 @@ load_data_atlas = function(normalise = TRUE, remove_doublets = FALSE, remove_str
     sizeFactors(sce) = sfs
     sce = scater::normalize(sce)
   }
-  
   if(remove_doublets){
     sce = scater::normalize(sce[,!meta$doublet])
     meta = meta[!meta$doublet,]
   }
-  
   if(remove_stripped){
     sce = scater::normalize(sce[,!meta$stripped])
     meta = meta[!meta$stripped, ]
   }
-  
   if(load_corrected){
     corrected = readRDS("/nfs/research1/marioni/jonny/embryos/data/corrected_pcas.rds")
     assign("corrected", corrected, envir = .GlobalEnv)
   }
-  
   assign("genes.atlas", genes, envir = .GlobalEnv)
   assign("meta.atlas", meta, envir = .GlobalEnv)
   assign("sce.atlas", sce, envir = .GlobalEnv)
-  
   invisible(0)
 }
 
