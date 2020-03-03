@@ -3,7 +3,8 @@ load_embryo_8.5 = function(filterNullArea = TRUE, threshTotalRNA, filterBigClump
   
   require(SingleCellExperiment)
   require(scater)
-  data.dir = "/Users/alsu/Develop/spatial/mouse_embryo/data/8_5/source/sce_all.Rds"
+  #data.dir = "/Users/alsu/Develop/spatial/mouse_embryo/data/8_5/source/sce_all.Rds"
+  data.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/data/8_5/source/sce_all.Rds"
   
   sce = readRDS( data.dir )
   meta = colData(sce)
