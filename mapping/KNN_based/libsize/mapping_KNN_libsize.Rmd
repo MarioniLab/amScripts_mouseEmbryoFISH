@@ -51,9 +51,6 @@ sce = sce[idx,]
   
 # load scRNA-seq atlas
 load_data_atlas(rownames_ensembl = F)
-load_data_atlas()
-sce.atlas = sce
-meta.atlas = meta
 sce.atlas = scater::normalize(sce.atlas)
 meta.atlas$celltype[meta.atlas$doublet] = "Doublet"
 meta.atlas$celltype[meta.atlas$stripped] = "Stripped"
