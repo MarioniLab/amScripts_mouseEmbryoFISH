@@ -13,6 +13,12 @@ load_embryo_8.5 = function(filterNullArea = TRUE, threshTotalRNA, filterBigClump
   
   sce = readRDS( data.dir )
   meta = colData(sce)
+  
+  # rename Cavin3 --> Prkcdbp
+  rownames.sce = rownames(sce)
+  rownames.sce[rownames.sce == "Cavin3"] = "Prkcdbp"
+  rownames(sce) = rownames.sce
+  
   # add libsize
   counts = assay(sce, "counts")
   libsize = colSums( counts )
@@ -56,19 +62,43 @@ load_embryo_8.5 = function(filterNullArea = TRUE, threshTotalRNA, filterBigClump
   invisible(0)
 }
 
-load_data_atlas = function(normalise = TRUE, remove_doublets = FALSE, remove_stripped = FALSE, load_corrected = FALSE, rownames_ensembl = TRUE){
+# add regressed by CT assay
+addCTregressedLogcounts = function(sce, assay.type, meta){
+  # make sure meta and sce are aligned
+  meta = meta[order(meta$uniqueID),]
+  sce = sce[, order(colnames(sce))]
   
+  counts = assay(sce, assay.type)
+  counts.perGene = apply(counts, 1, function(x){
+    df = data.frame(CT = meta$CT, counts = as.numeric(x), uniqueID = meta$uniqueID, embryo = meta$embryo)
+    stat = df%>% group_by(CT, embryo) %>% 
+      dplyr::summarize(mean.CT = mean(counts, na.rm=T) , sd.CT = sd(counts, na.rm=T))
+    # change sd 0/NA to sd 1 (so we don't divide to 0)
+    stat$sd.CT[stat$sd.CT == 0 | is.na(stat$sd.CT)] <- 1
+    df = merge(df, stat, by = c("CT", "embryo"), all.x=T)
+    df = df[order(df$uniqueID),]
+    return( as.numeric( (df$counts - df$mean.CT)/df$sd.CT ) )
+  })
+  regressed.counts = as.data.frame( t(counts.perGene) )
+  rownames(regressed.counts) = rownames(counts)
+  colnames(regressed.counts) = meta$uniqueID
+  assay(sce, paste0("CT_regressed.", assay.type)) <- regressed.counts
+  
+  return(sce)
+}
+
+
+load_data_atlas = function(normalise = TRUE, remove_doublets = FALSE, remove_stripped = FALSE, load_corrected = FALSE, rownames_ensembl = TRUE){
   if(load_corrected & (!remove_doublets | !remove_stripped)){
     message("Using corrected PCs, also removing doublets + stripped now.")
     remove_doublets = TRUE
     remove_stripped = TRUE
   }
-  
   require(scran)
   require(scater)
   require(SingleCellExperiment)
   require(Matrix)
-  
+
   counts = readRDS("/nfs/research1/marioni/jonny/embryos/data/raw_counts.rds")
   genes = read.table("/nfs/research1/marioni/jonny/embryos/data/genes.tsv", stringsAsFactors = F)
   meta = read.table("/nfs/research1/marioni/jonny/embryos/data/meta.tab", header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
@@ -104,5 +134,32 @@ load_data_atlas = function(normalise = TRUE, remove_doublets = FALSE, remove_str
   assign("sce.atlas", sce, envir = .GlobalEnv)
   invisible(0)
 }
+
+getCorrForOneCell = function(uniqueID, counts, meta, cell.locations){
+  require(fields)
+  
+  transcriptional.dist = rdist( t(counts[, uniqueID]) , t(counts) )
+  physical.dist = rdist( cell.locations[meta$uniqueID == uniqueID, ], cell.locations )
+  
+  out = as.numeric(cor(t(physical.dist), t(transcriptional.dist), method="pearson"))
+  return(out)
+}
+
+
+getmode <- function(v, dist) {
+  tab = table(v)
+  #if tie, break to shortest distance
+  if(sum(tab == max(tab)) > 1){
+    tied = names(tab)[tab == max(tab)]
+    sub = dist[v %in% tied]
+    names(sub) = v[v %in% tied]
+    return(names(sub)[which.min(sub)])
+  } else {
+    return(names(tab)[which.max(tab)])
+  }
+}
+
+
+
 
 
