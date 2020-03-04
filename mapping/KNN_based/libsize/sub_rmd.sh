@@ -9,10 +9,10 @@ script_name=map_lib
 
 #CHOOSE PARAMETERS
 #RAM in megabytes
-memory=60000
+memory=200000
 r_command="rusage[mem=${memory}]"
 #num_processors
-nproc=10
+nproc=6
 
 smg=/nfs/research1/marioni/alsu/singularity/R1.simg
 script=/nfs/research1/marioni/alsu/spatial/mouse_embryo/amScripts_mouseEmbryoFISH/mapping/KNN_based/libsize/run_rmd.R
