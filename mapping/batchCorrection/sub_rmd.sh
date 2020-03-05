@@ -5,17 +5,17 @@ err_folder=${my_folder}/clust_err/spatial
 
 #SELECT SCRIPT
 #If you change this, you MUST update the wrapper's grep
-script_name=gen_atlas
+script_name=batch
 
 #CHOOSE PARAMETERS
 #RAM in megabytes
-memory=100000
+memory=150000
 r_command="rusage[mem=${memory}]"
 #num_processors
-nproc=1
+nproc=6
 
 smg=/nfs/research1/marioni/alsu/singularity/R1.simg
-script=/nfs/research1/marioni/alsu/spatial/mouse_embryo/amScripts_mouseEmbryoFISH/mapping/KNN_based/run_rmd.R
+script=/nfs/research1/marioni/alsu/spatial/mouse_embryo/amScripts_mouseEmbryoFISH/mapping/batchCorrection/run_rmd.R
 
 bsub -q research-rh74 -e ${err_folder}/${script_name} \
 -o ${out_folder}/${script_name} \
