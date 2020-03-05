@@ -31,15 +31,15 @@ library(irlba)
 library(scales)
 library(biomaRt)
 library(cowplot)
-ncores = 6
-mcparam = MulticoreParam(workers = ncores)
-register(mcparam)
+library(batchelor)
+ncores = 1
+#mcparam = MulticoreParam(workers = ncores)
+#register(mcparam)
 
 root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
 #root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
 source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
 source(paste0(root.dir, "amScripts_mouseEmbryoFISH/visualization_functions.R"))
-
 # load sce files with counts data; clean from cells with 0 area and total # mRNA < user's threshold 
 load_embryo_8.5(threshTotalRNA = 0, filterNullArea = T, filterBigClumps = T, dir = "cluster")
 
@@ -52,12 +52,13 @@ sce = sce[,idx]
 idx = setdiff(1:dim(sce)[1], which(rownames(sce) %in% c("Xist")) )
 sce = sce[idx,]
   
+#source("/Users/alsu/Develop/FetalAlcoholSyndrome/FetalAlcoholSyndromeScripts/core_functions_local.R")
 # load scRNA-seq atlas
 load_data_atlas(rownames_ensembl = F)
+
 sce.atlas = scater::normalize(sce.atlas)
 meta.atlas$celltype[meta.atlas$doublet] = "Doublet"
 meta.atlas$celltype[meta.atlas$stripped] = "Stripped"
-
 # discard doublets and stripped for the atlas - we don't want to map to them
 idx = !meta.atlas$celltype %in% c("Doublet", "Stripped")
 meta.atlas = meta.atlas[idx,]
@@ -72,9 +73,9 @@ sce = sce[order(rownames(sce)),]
 sce.atlas = sce.atlas[order(rownames(sce.atlas)),]
 
 # join
-counts.seq = assay( sce, "logcounts.area" )
-counts.atlas = logcounts( sce.atlas )
-counts.joint = cbind(counts.atlas , counts )
+counts.seq = as.matrix( assay( sce, "logcounts.area" ))
+counts.atlas = as.matrix( logcounts( sce.atlas ) )
+counts.joint = cbind(counts.atlas , counts.seq )
 
 # join z-counts
 z.counts.seq = apply(counts.seq, 1, function(x){
@@ -82,19 +83,21 @@ z.counts.seq = apply(counts.seq, 1, function(x){
   out[is.na(out)] <- 0
   return(out)
 })
-rownames(z.counts.seq) = colnames(counts.seq)
-z.counts.seq = z.counts.seq[,order(colnames(z.counts.seq))]
+z.counts.seq = t(z.counts.seq)
+z.counts.seq = z.counts.seq[order(rownames(z.counts.seq)),]
+
 z.counts.atlas = apply(counts.atlas, 1, function(x){
   out = scale(x)
   out[is.na(out)] <- 0
   return(out)
 })
-rownames(z.counts.atlas) = colnames(counts.atlas)
-z.counts.atlas = z.counts.atlas[,order(colnames(z.counts.atlas))]
-z.counts.joint = cbind(z.counts.atlas , z.counts )
+z.counts.atlas = t(z.counts.atlas)
+z.counts.atlas = z.counts.atlas[order(rownames(z.counts.atlas)),]
+
+z.counts.joint = cbind(z.counts.atlas , z.counts.seq )
 
 # get pca
-nPC = dim(sce)[1]
+nPC = dim(sce)[1]-1
 counts.joint.pca = prcomp_irlba(t(counts.joint), n = nPC)$x
 counts.atlas.pca = counts.joint.pca[1:ncol(sce.atlas),]
 counts.seq.pca = counts.joint.pca[-(1:ncol(sce.atlas)),]
@@ -103,6 +106,18 @@ z.counts.atlas.pca = z.counts.joint.pca[1:ncol(sce.atlas),]
 z.counts.seq.pca = z.counts.joint.pca[-(1:ncol(sce.atlas)),]
 
 sample.type = c(meta.atlas$stage, meta$embryo)
+
+# get colors for sample.type
+sample.type_colours = c("E6.5" = "#D53E4F",
+                  "E6.75" = "#F46D43",
+                  "E7.0" = "#FDAE61",
+                  "E7.25" = "#FEE08B",
+                  "E7.5" = "#FFFFBF",
+                  "E7.75" = "#E6F598",
+                  "E8.0" = "#ABDDA4",
+                  "E8.25" = "#66C2A5",
+                  "E8.5" = "#3288BD",
+                  "mixed_gastrulation" = "#A9A9A9", "embryo_1" = "black")
 
 ```
 
@@ -116,10 +131,11 @@ current.tsne = Rtsne(counts.joint.pca, pca = F)$Y
 current.tsne = as.data.frame(current.tsne)
 current.tsne = cbind(current.tsne, sample.type)
   
+
 ggplot(current.tsne, aes(x = V1, y = V2, col = factor(sample.type) )) +
   geom_point(size = 0.5) + 
-  scale_colour_Publication() +
-  theme(legend.position = "none", axis.line = element_blank(),
+  scale_colour_manual(values = sample.type_colours, name = "") +
+  theme(legend.position = "bottom", axis.line = element_blank(),
         axis.text = element_blank(), axis.ticks = element_blank(), axis.title = element_blank()) 
 
 ```
@@ -133,7 +149,7 @@ counts.atlas.pca.bySamples = lapply(unq.samples, function(x){
   counts.atlas.pca[meta.atlas$sample == x, ]
 })
 # call batch correction for atlas samples
-atlas.corrected.pca = do.call(reducedMNN, c(counts.atlas.pca.bySamples ), BPPARAM=mcparam)
+atlas.corrected.pca = do.call(reducedMNN, c(counts.atlas.pca.bySamples))
 atlas.corrected.pca = atlas.corrected.pca$corrected
 
 # join with seq and perform tSNE
@@ -145,8 +161,8 @@ current.tsne = cbind(current.tsne, sample.type)
   
 ggplot(current.tsne, aes(x = V1, y = V2, col = factor(sample.type) )) +
   geom_point(size = 0.5) + 
-  scale_colour_Publication() +
-  theme(legend.position = "none", axis.line = element_blank(),
+  scale_colour_manual(values = sample.type_colours, name = "") +
+  theme(legend.position = "bottom", axis.line = element_blank(),
         axis.text = element_blank(), axis.ticks = element_blank(), axis.title = element_blank()) 
 
 ```
@@ -160,10 +176,10 @@ counts.atlas.pca.bySamples = lapply(unq.samples, function(x){
   counts.atlas.pca[meta.atlas$sample == x, ]
 })
 # call batch correction for atlas samples
-atlas.corrected.pca = do.call(reducedMNN, c(counts.atlas.pca.bySamples ), BPPARAM=mcparam)
+atlas.corrected.pca = do.call(reducedMNN, c(counts.atlas.pca.bySamples ))
 atlas.corrected.pca = atlas.corrected.pca$corrected
 # correction for corrected atlas + seq
-corrected.atlas.corrected.pca = do.call(reducedMNN, c(atlas.corrected.pca, counts.seq.pca), BPPARAM=mcparam)
+corrected.atlas.corrected.pca = reducedMNN(atlas.corrected.pca, counts.seq.pca)
 corrected.atlas.corrected.pca = corrected.atlas.corrected.pca$corrected
 
 current.tsne = Rtsne(corrected.atlas.corrected.pca, pca = F)$Y
@@ -172,8 +188,8 @@ current.tsne = cbind(current.tsne, sample.type)
   
 ggplot(current.tsne, aes(x = V1, y = V2, col = factor(sample.type) )) +
   geom_point(size = 0.5) + 
-  scale_colour_Publication() +
-  theme(legend.position = "none", axis.line = element_blank(),
+  scale_colour_manual(values = sample.type_colours, name = "") +
+  theme(legend.position = "bottom", axis.line = element_blank(),
         axis.text = element_blank(), axis.ticks = element_blank(), axis.title = element_blank()) 
 
 ```
@@ -191,7 +207,7 @@ current.tsne = cbind(current.tsne, sample.type)
   
 ggplot(current.tsne, aes(x = V1, y = V2, col = factor(sample.type) )) +
   geom_point(size = 0.5) + 
-  scale_colour_Publication() +
+  scale_colour_manual(values = sample.type_colours, name = "") +
   theme(legend.position = "none", axis.line = element_blank(),
         axis.text = element_blank(), axis.ticks = element_blank(), axis.title = element_blank()) 
 
@@ -206,7 +222,7 @@ counts.atlas.pca.bySamples = lapply(unq.samples, function(x){
   z.counts.atlas.pca[meta.atlas$sample == x, ]
 })
 # call batch correction for atlas samples
-atlas.corrected.pca = do.call(reducedMNN, c(counts.atlas.pca.bySamples ), BPPARAM=mcparam)
+atlas.corrected.pca = do.call(reducedMNN, c(counts.atlas.pca.bySamples))
 atlas.corrected.pca = atlas.corrected.pca$corrected
 
 # join with seq and perform tSNE
@@ -218,7 +234,7 @@ current.tsne = cbind(current.tsne, sample.type)
   
 ggplot(current.tsne, aes(x = V1, y = V2, col = factor(sample.type) )) +
   geom_point(size = 0.5) + 
-  scale_colour_Publication() +
+  scale_colour_manual(values = sample.type_colours, name = "") +
   theme(legend.position = "none", axis.line = element_blank(),
         axis.text = element_blank(), axis.ticks = element_blank(), axis.title = element_blank()) 
 
@@ -233,10 +249,10 @@ counts.atlas.pca.bySamples = lapply(unq.samples, function(x){
   z.counts.atlas.pca[meta.atlas$sample == x, ]
 })
 # call batch correction for atlas samples
-atlas.corrected.pca = do.call(reducedMNN, c(counts.atlas.pca.bySamples ), BPPARAM=mcparam)
+atlas.corrected.pca = do.call(reducedMNN, c(counts.atlas.pca.bySamples ))
 atlas.corrected.pca = atlas.corrected.pca$corrected
 # correction for corrected atlas + seq
-corrected.atlas.corrected.pca = do.call(reducedMNN, c(atlas.corrected.pca, z.counts.seq.pca), BPPARAM=mcparam)
+corrected.atlas.corrected.pca = reducedMNN(atlas.corrected.pca, z.counts.seq.pca)
 corrected.atlas.corrected.pca = corrected.atlas.corrected.pca$corrected
 
 current.tsne = Rtsne(corrected.atlas.corrected.pca, pca = F)$Y
@@ -245,8 +261,8 @@ current.tsne = cbind(current.tsne, sample.type)
   
 ggplot(current.tsne, aes(x = V1, y = V2, col = factor(sample.type) )) +
   geom_point(size = 0.5) + 
-  scale_colour_Publication() +
-  theme(legend.position = "none", axis.line = element_blank(),
+  scale_colour_manual(values = sample.type_colours, name = "") +
+  theme(legend.position = "bottom", axis.line = element_blank(),
         axis.text = element_blank(), axis.ticks = element_blank(), axis.title = element_blank()) 
 
 ```
