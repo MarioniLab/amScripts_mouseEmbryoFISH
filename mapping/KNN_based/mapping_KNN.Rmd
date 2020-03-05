@@ -68,6 +68,16 @@ sce.atlas = sce.atlas[idx,]
 sce = sce[order(rownames(sce)),]
 sce.atlas = sce.atlas[order(rownames(sce.atlas)),]
 
+# get z-counts for atlas
+counts.atlas = assay(sce.atlas, "logcounts")
+z.counts.atlas = apply(counts.atlas, 1, function(x){
+  out = scale(x)
+  out[is.na(out)] <- 0
+  return(out)
+})
+rownames(z.counts.atlas) = colnames(counts.atlas)
+z.counts.atlas = z.counts.atlas[,order(colnames(z.counts.atlas))]
+
 ```
 
 This script performs KNN based mapping: seqFISH onto Jonny's atlas.
@@ -78,7 +88,7 @@ This script performs KNN based mapping: seqFISH onto Jonny's atlas.
 
 ```{r mapping-area}
 
-# get z-counts for seq
+# get z-counts for seq (area)
 counts = assay(sce, "logcounts.area")
 z.counts = apply(counts, 1, function(x){
   out = scale(x)
@@ -87,16 +97,6 @@ z.counts = apply(counts, 1, function(x){
 })
 rownames(z.counts) = colnames(counts)
 z.counts = z.counts[,order(colnames(z.counts))]
-
-# get z-counts for atlas
-counts.atlas = assay(sce.atlas, "logcounts")
-z.counts.atlas = apply(counts.atlas, 1, function(x){
-  out = scale(x)
-  out[is.na(out)] <- 0
-  return(out)
-})
-rownames(z.counts.atlas) = colnames(counts.atlas)
-z.counts.atlas = z.counts.atlas[,order(colnames(z.counts.atlas))]
 
 # get knn-graph
 k.neigh = 50
@@ -130,8 +130,8 @@ saveRDS(mappings.area, file = paste0( root.dir, "data/8_5/mapping/logcounts_area
 
 ```{r mapping-libsize}
 
-# get z-counts for seq
-counts.area = assay(sce, "logcounts.libsize")
+# get z-counts for seq (libsize)
+counts = assay(sce, "logcounts.libsize")
 z.counts = apply(counts, 1, function(x){
   out = scale(x)
   out[is.na(out)] <- 0
@@ -139,16 +139,6 @@ z.counts = apply(counts, 1, function(x){
 })
 rownames(z.counts) = colnames(counts)
 z.counts = z.counts[,order(colnames(z.counts))]
-
-# get z-counts for atlas
-counts.atlas = assay(sce.atlas, "logcounts")
-z.counts.atlas = apply(counts.atlas, 1, function(x){
-  out = scale(x)
-  out[is.na(out)] <- 0
-  return(out)
-})
-rownames(z.counts.atlas) = colnames(counts.atlas)
-z.counts.atlas = z.counts.atlas[,order(colnames(z.counts.atlas))]
 
 # get knn-graph
 k.neigh = 50
@@ -177,9 +167,6 @@ names(mappings.libsize) = meta$uniqueID
 saveRDS(mappings.libsize, file = paste0( root.dir, "data/8_5/mapping/logcounts_libsize__knn__embryo_1.rds"))
 
 ```
-
-
-
 
 
 #Session Info
