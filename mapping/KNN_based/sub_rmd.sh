@@ -9,7 +9,7 @@ script_name=map
 
 #CHOOSE PARAMETERS
 #RAM in megabytes
-memory=200000
+memory=170000
 r_command="rusage[mem=${memory}]"
 #num_processors
 nproc=6
