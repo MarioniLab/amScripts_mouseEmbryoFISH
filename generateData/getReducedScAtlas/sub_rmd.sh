@@ -5,11 +5,11 @@ err_folder=${my_folder}/clust_err/spatial
 
 #SELECT SCRIPT
 #If you change this, you MUST update the wrapper's grep
-script_name=map
+script_name=gen_atlas
 
 #CHOOSE PARAMETERS
 #RAM in megabytes
-memory=10000
+memory=30000
 r_command="rusage[mem=${memory}]"
 #num_processors
 nproc=1
