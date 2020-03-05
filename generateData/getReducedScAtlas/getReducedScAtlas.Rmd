@@ -1,0 +1,63 @@
+---
+title: "Get atlas dataset wo doublets and stripped only for SEQ-fish genes"
+output:
+  BiocStyle::html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes  
+  html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: true
+    theme: united
+---
+
+# Load dependencies and source data
+
+```{r load_data, message=FALSE}
+
+library(Matrix)
+library(scran)
+library(BiocParallel)
+library(igraph)
+library(reshape2)
+library(knitr)
+library(scater)
+library(scales)
+library(biomaRt)
+
+root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/visualization_functions.R"))
+
+# load sce files with counts data; clean from cells with 0 area and total # mRNA < user's threshold 
+load_embryo_8.5(threshTotalRNA = 0, filterNullArea = T, filterBigClumps = T, dir = "cluster")
+
+# load scRNA-seq atlas
+load_data_atlas(rownames_ensembl = F)
+sce.atlas = scater::normalize(sce.atlas)
+meta.atlas$celltype[meta.atlas$doublet] = "Doublet"
+meta.atlas$celltype[meta.atlas$stripped] = "Stripped"
+
+# discard doublets and stripped for the atlas - we don't want to map to them
+idx = !meta.atlas$celltype %in% c("Doublet", "Stripped")
+meta.atlas = meta.atlas[idx,]
+sce.atlas = sce.atlas[,idx]
+
+# keep only those genes that are in seqFISH (excluding Xist and Cavin3)
+idx = rownames(sce.atlas) %in% rownames(sce)
+sce.atlas = sce.atlas[idx,]
+
+# save reduced sce.atlas and meta.atlas
+saveRDS(sce.atlas, paste0(root.dir, "data/scRNA_atlas_seqGenes_sce.rds"))
+saveRDS(meta.atlas, paste0(root.dir, "data/scRNA_atlas_seqGenes_meta.rds"))
+
+
+```
+
+#Session Info
+```{r sessinf}
+sessionInfo()
+```
