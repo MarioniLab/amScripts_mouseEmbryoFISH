@@ -9,7 +9,7 @@ script_name=gen_atlas
 
 #CHOOSE PARAMETERS
 #RAM in megabytes
-memory=60000
+memory=80000
 r_command="rusage[mem=${memory}]"
 #num_processors
 nproc=1
