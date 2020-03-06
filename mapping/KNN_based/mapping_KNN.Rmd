@@ -31,6 +31,9 @@ library(knitr)
 library(scater)
 library(scales)
 library(biomaRt)
+library(batchelor)
+library(irlba)
+library(cowplot)
 
 #root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
 root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
@@ -50,16 +53,14 @@ idx = setdiff(1:dim(sce)[1], which(rownames(sce) %in% c("Xist")) )
 sce = sce[idx,]
   
 # load scRNA-seq atlas
-load_data_atlas(rownames_ensembl = F)
+load_data_atlas(rownames_ensembl = F, dir = "local")
 sce.atlas = scater::normalize(sce.atlas)
 meta.atlas$celltype[meta.atlas$doublet] = "Doublet"
 meta.atlas$celltype[meta.atlas$stripped] = "Stripped"
-
 # discard doublets and stripped for the atlas - we don't want to map to them
 idx = !meta.atlas$celltype %in% c("Doublet", "Stripped")
 meta.atlas = meta.atlas[idx,]
 sce.atlas = sce.atlas[,idx]
-
 # keep only those genes that are in seqFISH (excluding Xist and Cavin3)
 idx = rownames(sce.atlas) %in% rownames(sce)
 sce.atlas = sce.atlas[idx,]
@@ -68,15 +69,79 @@ sce.atlas = sce.atlas[idx,]
 sce = sce[order(rownames(sce)),]
 sce.atlas = sce.atlas[order(rownames(sce.atlas)),]
 
+
 # get z-counts for atlas
-counts.atlas = assay(sce.atlas, "logcounts")
-z.counts.atlas = apply(counts.atlas, 1, function(x){
-  out = scale(x)
-  out[is.na(out)] <- 0
-  return(out)
+get_z.counts = function(counts){
+  z.counts = apply(counts, 1, function(x){
+    out = scale(x)
+    out[is.na(out)] <- 0
+    return(out)
+  })
+  z.counts = t(z.counts)
+  z.counts = z.counts[order(rownames(z.counts)),]
+  return(z.counts)
+}
+
+counts.atlas = as.matrix( assay(sce.atlas, "logcounts") )
+z.counts.atlas = get_z.counts(counts.atlas)
+
+counts.seq = as.matrix( assay(sce, "logcounts.area") )
+z.counts.seq = get_z.counts(counts.seq)
+
+# join
+counts.joint = cbind(counts.atlas , counts.seq )
+z.counts.joint = cbind(z.counts.atlas , z.counts.seq )
+
+```
+
+# PCA 
+
+```{r pca}
+
+nPC = 100
+unq.samples = unique(meta.atlas$sample)
+sample.type = c(meta.atlas$stage, meta$embryo)
+
+# raw
+counts.joint.pca = prcomp_irlba(t(counts.joint), n = nPC)$x
+counts.atlas.pca = counts.joint.pca[1:ncol(sce.atlas),]
+counts.seq.pca = counts.joint.pca[-(1:ncol(sce.atlas)),]
+
+counts.atlas.pca.bySamples = lapply(unq.samples, function(x){
+  counts.atlas.pca[meta.atlas$sample == x, ]
 })
-rownames(z.counts.atlas) = colnames(counts.atlas)
-z.counts.atlas = z.counts.atlas[,order(colnames(z.counts.atlas))]
+# call batch correction for atlas samples
+atlas.corrected.pca = do.call(reducedMNN, c(counts.atlas.pca.bySamples ))
+atlas.corrected.pca = atlas.corrected.pca$corrected
+# correction for corrected atlas + seq
+joint.corrected.pca = reducedMNN(atlas.corrected.pca, counts.seq.pca)
+joint.corrected.pca = joint.corrected.pca$corrected
+
+atlas = 1:nrow(atlas.corrected.pca)
+atlas.corrected.pca = joint.corrected.pca[atlas,]
+seq.corrected.pca = joint.corrected.pca[-atlas,]
+
+
+# z-score
+z.counts.joint.pca = prcomp_irlba(t(z.counts.joint), n = nPC)$x
+z.counts.atlas.pca = z.counts.joint.pca[1:ncol(sce.atlas),]
+z.counts.seq.pca = z.counts.joint.pca[-(1:ncol(sce.atlas)),]
+
+z.counts.atlas.pca.bySamples = lapply(unq.samples, function(x){
+  z.counts.atlas.pca[meta.atlas$sample == x, ]
+})
+# call batch correction for atlas samples
+z.atlas.corrected.pca = do.call(reducedMNN, c(z.counts.atlas.pca.bySamples ))
+z.atlas.corrected.pca = z.atlas.corrected.pca$corrected
+# correction for corrected atlas + seq
+z.joint.corrected.pca = reducedMNN(z.atlas.corrected.pca, z.counts.seq.pca)
+z.joint.corrected.pca = z.joint.corrected.pca$corrected
+
+atlas = 1:nrow(z.atlas.corrected.pca)
+z.atlas.corrected.pca = z.joint.corrected.pca[atlas,]
+z.seq.corrected.pca = z.joint.corrected.pca[-atlas,]
+
+
 
 ```
 
@@ -84,23 +149,11 @@ This script performs KNN based mapping: seqFISH onto Jonny's atlas.
 
 # Mapping 
 
-## Area
-
-```{r mapping-area}
-
-# get z-counts for seq (area)
-counts = assay(sce, "logcounts.area")
-z.counts = apply(counts, 1, function(x){
-  out = scale(x)
-  out[is.na(out)] <- 0
-  return(out)
-})
-rownames(z.counts) = colnames(counts)
-z.counts = z.counts[,order(colnames(z.counts))]
+```{r mapping}
 
 # get knn-graph
 k.neigh = 50
-knns = queryKNN(z.counts.atlas, z.counts, k = k.neigh, get.index = TRUE, 
+knns = queryKNN(atlas.corrected.pca, atlas.corrected.pca, k = k.neigh, get.index = TRUE, 
                 get.distance = TRUE, BPPARAM=mcparam)
 
 # get stat
@@ -112,7 +165,7 @@ celltype.mapped.match = t(apply(celltypes, 1, function(x) match(x, getmode(x, 1:
 knns$distance = knns$distance * celltype.mapped.match
 distance.mapped = rowMeans(knns$distance, na.rm = TRUE)
   
-mappings.area = lapply(1:dim(knns$index)[1], function(x){
+mappings.raw = lapply(1:dim(knns$index)[1], function(x){
   out = list(cells.mapped = k.mapped[x,],
              celltypes.mapped = celltypes[x,],
              celltype.mode = celltype.mapped[x],
@@ -121,28 +174,13 @@ mappings.area = lapply(1:dim(knns$index)[1], function(x){
              distance.mean = distance.mapped[x])
   return(out)
 })
-names(mappings.area) = meta$uniqueID
-saveRDS(mappings.area, file = paste0( root.dir, "data/8_5/mapping/logcounts_area__knn__embryo_1.rds"))
+names(mappings.raw) = meta$uniqueID
+saveRDS(mappings.raw, file = paste0( root.dir, "data/8_5/mapping/raw__knn__embryo_1.rds"))
 
-```
-
-## Libsize
-
-```{r mapping-libsize}
-
-# get z-counts for seq (libsize)
-counts = assay(sce, "logcounts.libsize")
-z.counts = apply(counts, 1, function(x){
-  out = scale(x)
-  out[is.na(out)] <- 0
-  return(out)
-})
-rownames(z.counts) = colnames(counts)
-z.counts = z.counts[,order(colnames(z.counts))]
-
+# z-score
 # get knn-graph
 k.neigh = 50
-knns = queryKNN(z.counts.atlas, z.counts, k = k.neigh, get.index = TRUE, 
+knns = queryKNN(z.atlas.corrected.pca, z.atlas.corrected.pca, k = k.neigh, get.index = TRUE, 
                 get.distance = TRUE, BPPARAM=mcparam)
 
 # get stat
@@ -154,7 +192,7 @@ celltype.mapped.match = t(apply(celltypes, 1, function(x) match(x, getmode(x, 1:
 knns$distance = knns$distance * celltype.mapped.match
 distance.mapped = rowMeans(knns$distance, na.rm = TRUE)
   
-mappings.libsize = lapply(1:dim(knns$index)[1], function(x){
+mappings.z = lapply(1:dim(knns$index)[1], function(x){
   out = list(cells.mapped = k.mapped[x,],
              celltypes.mapped = celltypes[x,],
              celltype.mode = celltype.mapped[x],
@@ -163,10 +201,11 @@ mappings.libsize = lapply(1:dim(knns$index)[1], function(x){
              distance.mean = distance.mapped[x])
   return(out)
 })
-names(mappings.libsize) = meta$uniqueID
-saveRDS(mappings.libsize, file = paste0( root.dir, "data/8_5/mapping/logcounts_libsize__knn__embryo_1.rds"))
+names(mappings.z) = meta$uniqueID
+saveRDS(mappings.z, file = paste0( root.dir, "data/8_5/mapping/z__knn__embryo_1.rds"))
 
 ```
+
 
 
 #Session Info
