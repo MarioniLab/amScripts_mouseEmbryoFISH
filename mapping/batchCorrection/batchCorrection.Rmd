@@ -97,7 +97,7 @@ z.counts.atlas = z.counts.atlas[order(rownames(z.counts.atlas)),]
 z.counts.joint = cbind(z.counts.atlas , z.counts.seq )
 
 # get pca
-nPC = dim(sce)[1]-1
+nPC = 100
 counts.joint.pca = prcomp_irlba(t(counts.joint), n = nPC)$x
 counts.atlas.pca = counts.joint.pca[1:ncol(sce.atlas),]
 counts.seq.pca = counts.joint.pca[-(1:ncol(sce.atlas)),]
@@ -127,11 +127,10 @@ sample.type_colours = c("E6.5" = "#D53E4F",
 
 ```{r uncorr-atlas-seq}
 
-current.tsne = Rtsne(counts.joint.pca, pca = F)$Y
+current.tsne = Rtsne(counts.joint.pca, pca = F, check_duplicates = FALSE)$Y
 current.tsne = as.data.frame(current.tsne)
 current.tsne = cbind(current.tsne, sample.type)
   
-
 ggplot(current.tsne, aes(x = V1, y = V2, col = factor(sample.type) )) +
   geom_point(size = 0.5) + 
   scale_colour_manual(values = sample.type_colours, name = "") +
@@ -155,7 +154,7 @@ atlas.corrected.pca = atlas.corrected.pca$corrected
 # join with seq and perform tSNE
 current.pca = rbind(atlas.corrected.pca, counts.seq.pca)
 
-current.tsne = Rtsne(current.pca, pca = F)$Y
+current.tsne = Rtsne(current.pca, pca = F, check_duplicates = FALSE)$Y
 current.tsne = as.data.frame(current.tsne)
 current.tsne = cbind(current.tsne, sample.type)
   
@@ -182,7 +181,7 @@ atlas.corrected.pca = atlas.corrected.pca$corrected
 corrected.atlas.corrected.pca = reducedMNN(atlas.corrected.pca, counts.seq.pca)
 corrected.atlas.corrected.pca = corrected.atlas.corrected.pca$corrected
 
-current.tsne = Rtsne(corrected.atlas.corrected.pca, pca = F)$Y
+current.tsne = Rtsne(corrected.atlas.corrected.pca, pca = F, check_duplicates = FALSE)$Y
 current.tsne = as.data.frame(current.tsne)
 current.tsne = cbind(current.tsne, sample.type)
   
@@ -201,7 +200,7 @@ ggplot(current.tsne, aes(x = V1, y = V2, col = factor(sample.type) )) +
 
 ```{r z-uncorr-atlas-seq}
 
-current.tsne = Rtsne(z.counts.joint.pca, pca = F)$Y
+current.tsne = Rtsne(z.counts.joint.pca, pca = F, check_duplicates = FALSE)$Y
 current.tsne = as.data.frame(current.tsne)
 current.tsne = cbind(current.tsne, sample.type)
   
@@ -228,7 +227,7 @@ atlas.corrected.pca = atlas.corrected.pca$corrected
 # join with seq and perform tSNE
 current.pca = rbind(atlas.corrected.pca, z.counts.seq.pca)
 
-current.tsne = Rtsne(current.pca, pca = F)$Y
+current.tsne = Rtsne(current.pca, pca = F, check_duplicates = FALSE)$Y
 current.tsne = as.data.frame(current.tsne)
 current.tsne = cbind(current.tsne, sample.type)
   
@@ -255,7 +254,7 @@ atlas.corrected.pca = atlas.corrected.pca$corrected
 corrected.atlas.corrected.pca = reducedMNN(atlas.corrected.pca, z.counts.seq.pca)
 corrected.atlas.corrected.pca = corrected.atlas.corrected.pca$corrected
 
-current.tsne = Rtsne(corrected.atlas.corrected.pca, pca = F)$Y
+current.tsne = Rtsne(corrected.atlas.corrected.pca, pca = F, check_duplicates = FALSE)$Y
 current.tsne = as.data.frame(current.tsne)
 current.tsne = cbind(current.tsne, sample.type)
   
