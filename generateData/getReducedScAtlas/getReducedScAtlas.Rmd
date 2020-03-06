@@ -52,7 +52,7 @@ sce.atlas = sce.atlas[idx,]
 
 # save reduced sce.atlas and meta.atlas
 saveRDS(sce.atlas, paste0(root.dir, "data/scRNA_atlas_seqGenes_sce.rds"))
-saveRDS(meta.atlas, paste0(root.dir, "data/scRNA_atlas_seqGenes_meta.rds"))
+#saveRDS(meta.atlas, paste0(root.dir, "data/scRNA_atlas_seqGenes_meta.rds"))
 
 
 ```

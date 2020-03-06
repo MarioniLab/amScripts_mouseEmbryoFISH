@@ -199,7 +199,7 @@ ggplot(current.tsne, aes(x = V1, y = V2, col = factor(sample.type) )) +
 
 ## Uncorrected atlas + seqFISH
 
-```{r uncorr-atlas-seq}
+```{r z-uncorr-atlas-seq}
 
 current.tsne = Rtsne(z.counts.joint.pca, pca = F)$Y
 current.tsne = as.data.frame(current.tsne)
@@ -215,7 +215,7 @@ ggplot(current.tsne, aes(x = V1, y = V2, col = factor(sample.type) )) +
 
 ## Corrected (atlas) + seqFISH
 
-```{r corr-atlas-seq}
+```{r z-corr-atlas-seq}
 
 unq.samples = unique(meta.atlas$sample)
 counts.atlas.pca.bySamples = lapply(unq.samples, function(x){
@@ -242,7 +242,7 @@ ggplot(current.tsne, aes(x = V1, y = V2, col = factor(sample.type) )) +
 
 ## Corrected(corrected(atlas) + seqFISH)
 
-```{r corr-corr-atlas-seq}
+```{r z-corr-corr-atlas-seq}
 
 unq.samples = unique(meta.atlas$sample)
 counts.atlas.pca.bySamples = lapply(unq.samples, function(x){
