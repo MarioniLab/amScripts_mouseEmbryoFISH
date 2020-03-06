@@ -53,7 +53,7 @@ idx = setdiff(1:dim(sce)[1], which(rownames(sce) %in% c("Xist")) )
 sce = sce[idx,]
   
 # load scRNA-seq atlas
-load_data_atlas(rownames_ensembl = F, dir = "local")
+load_data_atlas(rownames_ensembl = F)
 sce.atlas = scater::normalize(sce.atlas)
 meta.atlas$celltype[meta.atlas$doublet] = "Doublet"
 meta.atlas$celltype[meta.atlas$stripped] = "Stripped"
@@ -153,7 +153,7 @@ This script performs KNN based mapping: seqFISH onto Jonny's atlas.
 
 # get knn-graph
 k.neigh = 50
-knns = queryKNN(atlas.corrected.pca, atlas.corrected.pca, k = k.neigh, get.index = TRUE, 
+knns = queryKNN(atlas.corrected.pca, seq.corrected.pca, k = k.neigh, get.index = TRUE, 
                 get.distance = TRUE, BPPARAM=mcparam)
 
 # get stat
@@ -179,8 +179,7 @@ saveRDS(mappings.raw, file = paste0( root.dir, "data/8_5/mapping/raw__knn__embry
 
 # z-score
 # get knn-graph
-k.neigh = 50
-knns = queryKNN(z.atlas.corrected.pca, z.atlas.corrected.pca, k = k.neigh, get.index = TRUE, 
+knns = queryKNN(z.atlas.corrected.pca, z.seq.corrected.pca, k = k.neigh, get.index = TRUE, 
                 get.distance = TRUE, BPPARAM=mcparam)
 
 # get stat
