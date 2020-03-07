@@ -173,17 +173,16 @@ k.mapped = t(apply(knns$index, 1, function(x) meta.atlas$cell[x]))
 celltypes = t(apply(k.mapped, 1, function(x) meta.atlas$celltype[match(x, meta.atlas$cell)]))
 celltype.mapped = apply(celltypes, 1, function(x) getmode(x, 1:length(x)))
 celltype.mapped.fraction = apply(celltypes, 1, function(x) mean(x == getmode(x, 1:length(x))))
-celltype.mapped.match = t(apply(celltypes, 1, function(x) match(x, getmode(x, 1:length(x)))))
-knns$distance = knns$distance * celltype.mapped.match
-distance.mapped = rowMeans(knns$distance, na.rm = TRUE)
+#celltype.mapped.match = t(apply(celltypes, 1, function(x) match(x, getmode(x, 1:length(x)))))
+#knns$distance = knns$distance * celltype.mapped.match
+#distance.mapped = rowMeans(knns$distance, na.rm = TRUE)
   
 mappings.raw = lapply(1:dim(knns$index)[1], function(x){
   out = list(cells.mapped = k.mapped[x,],
              celltypes.mapped = celltypes[x,],
              celltype.mode = celltype.mapped[x],
              celltype.mode.fraction = celltype.mapped.fraction[x],
-             distances.mapped = knns$distance[x,],
-             distance.mean = distance.mapped[x])
+             distances.mapped = knns$distance[x,])
   return(out)
 })
 names(mappings.raw) = meta$uniqueID
@@ -199,17 +198,16 @@ k.mapped = t(apply(knns$index, 1, function(x) meta.atlas$cell[x]))
 celltypes = t(apply(k.mapped, 1, function(x) meta.atlas$celltype[match(x, meta.atlas$cell)]))
 celltype.mapped = apply(celltypes, 1, function(x) getmode(x, 1:length(x)))
 celltype.mapped.fraction = apply(celltypes, 1, function(x) mean(x == getmode(x, 1:length(x))))
-celltype.mapped.match = t(apply(celltypes, 1, function(x) match(x, getmode(x, 1:length(x)))))
-knns$distance = knns$distance * celltype.mapped.match
-distance.mapped = rowMeans(knns$distance, na.rm = TRUE)
+#celltype.mapped.match = t(apply(celltypes, 1, function(x) match(x, getmode(x, 1:length(x)))))
+#knns$distance = knns$distance * celltype.mapped.match
+#distance.mapped = rowMeans(knns$distance, na.rm = TRUE)
   
 mappings.z = lapply(1:dim(knns$index)[1], function(x){
   out = list(cells.mapped = k.mapped[x,],
              celltypes.mapped = celltypes[x,],
              celltype.mode = celltype.mapped[x],
              celltype.mode.fraction = celltype.mapped.fraction[x],
-             distances.mapped = knns$distance[x,],
-             distance.mean = distance.mapped[x])
+             distances.mapped = knns$distance[x,])
   return(out)
 })
 names(mappings.z) = meta$uniqueID
