@@ -62,6 +62,20 @@ load_embryo_8.5 = function(filterNullArea = TRUE, threshTotalRNA, filterBigClump
   invisible(0)
 }
 
+filterEmptyCells = function(sce, meta){
+  counts = counts(sce)
+  reduced.libsize = colSums( counts )
+  idx = reduced.libsize == 0
+  meta = meta[idx,]
+  sce = sce[,idx]
+  
+  assign("sce", sce, envir = .GlobalEnv)
+  assign("meta", meta, envir = .GlobalEnv)
+  
+  invisible(0)
+}
+
+
 # add regressed by CT assay
 addCTregressedLogcounts = function(sce, assay.type, meta){
   # make sure meta and sce are aligned
@@ -88,7 +102,8 @@ addCTregressedLogcounts = function(sce, assay.type, meta){
 }
 
 
-load_data_atlas = function(normalise = TRUE, remove_doublets = FALSE, remove_stripped = FALSE, load_corrected = FALSE, rownames_ensembl = TRUE){
+load_data_atlas = function(normalise = TRUE, remove_doublets = FALSE, remove_stripped = FALSE, 
+                           load_corrected = FALSE, rownames_ensembl = TRUE){
   if(load_corrected & (!remove_doublets | !remove_stripped)){
     message("Using corrected PCs, also removing doublets + stripped now.")
     remove_doublets = TRUE
@@ -98,10 +113,12 @@ load_data_atlas = function(normalise = TRUE, remove_doublets = FALSE, remove_str
   require(scater)
   require(SingleCellExperiment)
   require(Matrix)
-
-  counts = readRDS("/nfs/research1/marioni/jonny/embryos/data/raw_counts.rds")
-  genes = read.table("/nfs/research1/marioni/jonny/embryos/data/genes.tsv", stringsAsFactors = F)
-  meta = read.table("/nfs/research1/marioni/jonny/embryos/data/meta.tab", header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
+  
+  root.dir = "/nfs/research1/marioni/jonny/embryos/data/"
+  #root.dir = "/Users/alsu/Develop/FetalAlcoholSyndrome/atlas_Jonny/data/"
+  counts = readRDS(paste0( root.dir, "raw_counts.rds"))
+  genes = read.table(paste0( root.dir, "genes.tsv"), stringsAsFactors = F)
+  meta = read.table(paste0( root.dir, "meta.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
   
   if (!rownames_ensembl){
     rownames(counts) = genes[,2] # systematic name
@@ -113,7 +130,7 @@ load_data_atlas = function(normalise = TRUE, remove_doublets = FALSE, remove_str
   sce = SingleCellExperiment(assays = list("counts" = counts))
   
   if(normalise){
-    sfs = read.table("/nfs/research1/marioni/jonny/embryos/data/sizefactors.tab", stringsAsFactors = F)[,1]
+    sfs = read.table(paste0(root.dir, "sizefactors.tab"), stringsAsFactors = F)[,1]
     sizeFactors(sce) = sfs
     sce = scater::normalize(sce)
   }
@@ -126,12 +143,13 @@ load_data_atlas = function(normalise = TRUE, remove_doublets = FALSE, remove_str
     meta = meta[!meta$stripped, ]
   }
   if(load_corrected){
-    corrected = readRDS("/nfs/research1/marioni/jonny/embryos/data/corrected_pcas.rds")
+    corrected = readRDS(paste0(root.dir, "corrected_pcas.rds"))
     assign("corrected", corrected, envir = .GlobalEnv)
   }
   assign("genes.atlas", genes, envir = .GlobalEnv)
   assign("meta.atlas", meta, envir = .GlobalEnv)
   assign("sce.atlas", sce, envir = .GlobalEnv)
+  assign("sfs.atlas", sfs, envir = .GlobalEnv)
   invisible(0)
 }
 

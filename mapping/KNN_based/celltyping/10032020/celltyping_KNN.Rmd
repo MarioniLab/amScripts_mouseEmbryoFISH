@@ -41,6 +41,8 @@ root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
 source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
 source(paste0(root.dir, "amScripts_mouseEmbryoFISH/visualization_functions.R"))
 
+#source("/Users/alsu/Develop/FetalAlcoholSyndrome/FetalAlcoholSyndromeScripts/core_functions_local.R")
+
 # load sce files with counts data; clean from cells with 0 area and total # mRNA < user's threshold 
 load_embryo_8.5(threshTotalRNA = 0, filterNullArea = T, filterBigClumps = T, dir = "cluster")
 
@@ -51,7 +53,10 @@ sce = sce[,idx]
 
 # get genes for celltyping
 genes = read.table(paste0(root.dir , "amScripts_mouseEmbryoFISH/mapping/KNN_based/celltyping/10032020/celltyping_genes_10032020.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
-sce = sce[genes$gene,]
+sce = sce[unique( genes$gene ),]
+
+# make sure that all cells have at least 1 gene count among selected genes
+filterEmptyCells(sce, meta)
 
 # load scRNA-seq atlas
 load_data_atlas(rownames_ensembl = F)
@@ -65,21 +70,21 @@ sce.atlas = sce.atlas[,idx]
 # keep only genes for celltyping
 idx = rownames(sce.atlas) %in% rownames(sce)
 sce.atlas = sce.atlas[idx,]
-
-## atlas: downsample to 10k cells per stage (or maximum number of cells in stage)
-keep = lapply(unique(meta.atlas$stage), function(x){
-  if(x == "mixed_gastrulation"){
-    return(c())
-  } else if(sum(meta.atlas$stage == x) < 10000) {
-    return(which(meta.atlas$stage == x))
-  } else {
-    hits = which(meta.atlas$stage == x)
-    return(sample(hits, 10000))
-  }
-})
-keep = do.call(c, keep)
-meta.atlas = meta.atlas[keep,]
-sce.atlas = sce.atlas[,keep]
+# 
+# ## atlas: downsample to 10k cells per stage (or maximum number of cells in stage)
+# keep = lapply(unique(meta.atlas$stage), function(x){
+#   if(x == "mixed_gastrulation"){
+#     return(c())
+#   } else if(sum(meta.atlas$stage == x) < 10000) {
+#     return(which(meta.atlas$stage == x))
+#   } else {
+#     hits = which(meta.atlas$stage == x)
+#     return(sample(hits, 10000))
+#   }
+# })
+# keep = do.call(c, keep)
+# meta.atlas = meta.atlas[keep,]
+# sce.atlas = sce.atlas[,keep]
 
 # get the same order of rows for sce and sce.atlas
 sce = sce[order(rownames(sce)),]
