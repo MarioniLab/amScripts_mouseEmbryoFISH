@@ -65,7 +65,7 @@ load_embryo_8.5 = function(filterNullArea = TRUE, threshTotalRNA, filterBigClump
 filterEmptyCells = function(sce, meta){
   counts = counts(sce)
   reduced.libsize = colSums( counts )
-  idx = reduced.libsize == 0
+  idx = reduced.libsize > 0
   meta = meta[idx,]
   sce = sce[,idx]
   
