@@ -1,0 +1,211 @@
+---
+title: "Mapping seqFISH data (by logcounts.libsize) onto scRNA-seq to get CT"
+output:
+  BiocStyle::html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes  
+  html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: true
+    theme: united
+---
+
+# Load dependencies and source data
+
+```{r load_data, message=FALSE}
+
+library(Matrix)
+library(scran)
+library(BiocParallel)
+library(BiocNeighbors)
+ncores = 6
+mcparam = MulticoreParam(workers = ncores)
+register(mcparam)
+library(igraph)
+library(reshape2)
+library(knitr)
+library(scater)
+library(scales)
+library(biomaRt)
+library(batchelor)
+library(irlba)
+library(cowplot)
+
+set.seed(42)
+#root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
+root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/visualization_functions.R"))
+
+# load sce files with counts data; clean from cells with 0 area and total # mRNA < user's threshold 
+load_embryo_8.5(threshTotalRNA = 0, filterNullArea = T, filterBigClumps = T, dir = "cluster")
+
+# work only with the embryo_1 for now
+idx = meta$embryo == "embryo_1"
+meta = meta[idx,]
+sce = sce[,idx]
+
+# get genes for celltyping
+genes = read.table(paste0(root.dir , "amScripts_mouseEmbryoFISH/mapping/KNN_based/celltyping/10032020/celltyping_genes_10032020.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
+sce = sce[genes$gene,]
+
+# load scRNA-seq atlas
+load_data_atlas(rownames_ensembl = F)
+sce.atlas = scater::normalize(sce.atlas)
+meta.atlas$celltype[meta.atlas$doublet] = "Doublet"
+meta.atlas$celltype[meta.atlas$stripped] = "Stripped"
+# discard doublets and stripped for the atlas - we don't want to map to them
+idx = !meta.atlas$celltype %in% c("Doublet", "Stripped")
+meta.atlas = meta.atlas[idx,]
+sce.atlas = sce.atlas[,idx]
+# keep only genes for celltyping
+idx = rownames(sce.atlas) %in% rownames(sce)
+sce.atlas = sce.atlas[idx,]
+
+## atlas: downsample to 10k cells per stage (or maximum number of cells in stage)
+keep = lapply(unique(meta.atlas$stage), function(x){
+  if(x == "mixed_gastrulation"){
+    return(c())
+  } else if(sum(meta.atlas$stage == x) < 10000) {
+    return(which(meta.atlas$stage == x))
+  } else {
+    hits = which(meta.atlas$stage == x)
+    return(sample(hits, 10000))
+  }
+})
+keep = do.call(c, keep)
+meta.atlas = meta.atlas[keep,]
+sce.atlas = sce.atlas[,keep]
+
+# get the same order of rows for sce and sce.atlas
+sce = sce[order(rownames(sce)),]
+sce.atlas = sce.atlas[order(rownames(sce.atlas)),]
+
+
+# get z-counts for atlas
+get_z.counts = function(counts){
+  z.counts = apply(counts, 1, function(x){
+    out = scale(x)
+    out[is.na(out)] <- 0
+    return(out)
+  })
+  z.counts = t(z.counts)
+  z.counts = z.counts[order(rownames(z.counts)),]
+  return(z.counts)
+}
+
+counts.atlas = as.matrix( assay(sce.atlas, "logcounts") )
+z.counts.atlas = get_z.counts(counts.atlas)
+
+counts.seq = as.matrix( assay(sce, "logcounts.area") )
+z.counts.seq = get_z.counts(counts.seq)
+
+# join
+counts.joint = cbind(counts.atlas , counts.seq )
+z.counts.joint = cbind(z.counts.atlas , z.counts.seq )
+
+
+```
+
+# Batch correction
+
+Since in SEQ experiment we have a specific set of genes, we will perform batch correction directly without prior PCA step.
+
+
+```{r batch}
+
+# transform all matrices to feed to MNN
+counts.seq = t(counts.seq)
+counts.atlas = t(counts.atlas)
+counts.joint = t(counts.joint)
+z.counts.seq = t(z.counts.seq)
+z.counts.atlas = t(z.counts.atlas)
+z.counts.joint = t(z.counts.joint)
+
+unq.samples = unique(meta.atlas$sample)
+counts.atlas.bySamples = lapply(unq.samples, function(x){
+  counts.atlas[meta.atlas$sample == x, ]
+})
+# call batch correction for atlas samples
+atlas.corrected = do.call(reducedMNN, c(counts.atlas.bySamples ))
+atlas.corrected = atlas.corrected$corrected
+# correction for corrected atlas + seq
+joint.corrected = reducedMNN(atlas.corrected, counts.seq)
+joint.corrected = joint.corrected$corrected
+
+atlas = 1:nrow(atlas.corrected)
+atlas.corrected = joint.corrected[atlas,]
+seq.corrected = joint.corrected[-atlas,]
+
+# z-score
+z.counts.atlas.bySamples = lapply(unq.samples, function(x){
+  z.counts.atlas[meta.atlas$sample == x, ]
+})
+# call batch correction for atlas samples
+z.atlas.corrected = do.call(reducedMNN, c(z.counts.atlas.bySamples ))
+z.atlas.corrected = z.atlas.corrected$corrected
+# correction for corrected atlas + seq
+z.joint.corrected = reducedMNN(z.atlas.corrected, z.counts.seq)
+z.joint.corrected = z.joint.corrected$corrected
+
+atlas = 1:nrow(z.atlas.corrected)
+z.atlas.corrected = z.joint.corrected[atlas,]
+z.seq.corrected = z.joint.corrected[-atlas,]
+
+
+```
+
+This script performs KNN based mapping: seqFISH onto Jonny's atlas.
+
+# Mapping 
+
+```{r mapping}
+
+# get knn-graph
+k.neigh = 50
+knns = queryKNN(atlas.corrected, seq.corrected, k = k.neigh, get.index = TRUE, 
+                get.distance = TRUE, BPPARAM=mcparam)
+
+# get stat
+k.mapped = t(apply(knns$index, 1, function(x) meta.atlas$cell[x]))
+celltypes = t(apply(k.mapped, 1, function(x) meta.atlas$celltype[match(x, meta.atlas$cell)]))
+  
+mappings.raw = lapply(1:dim(knns$index)[1], function(x){
+  out = list(cells.mapped = k.mapped[x,],
+             celltypes.mapped = celltypes[x,],
+             distances.mapped = knns$distance[x,])
+  return(out)
+})
+names(mappings.raw) = meta$uniqueID
+saveRDS(mappings.raw, file = paste0( root.dir, "data/8_5/celltyping/raw__knn__embryo_1__10032020.rds"))
+
+# z-score
+# get knn-graph
+knns = queryKNN(z.atlas.corrected, z.seq.corrected, k = k.neigh, get.index = TRUE, 
+                get.distance = TRUE, BPPARAM=mcparam)
+
+# get stat
+k.mapped = t(apply(knns$index, 1, function(x) meta.atlas$cell[x]))
+celltypes = t(apply(k.mapped, 1, function(x) meta.atlas$celltype[match(x, meta.atlas$cell)]))
+  
+mappings.z = lapply(1:dim(knns$index)[1], function(x){
+  out = list(cells.mapped = k.mapped[x,],
+             celltypes.mapped = celltypes[x,],
+             distances.mapped = knns$distance[x,])
+  return(out)
+})
+names(mappings.z) = meta$uniqueID
+saveRDS(mappings.z, file = paste0( root.dir, "data/8_5/celltyping/z__knn__embryo_1__10032020.rds"))
+
+```
+
+
+
+#Session Info
+```{r sessinf}
+sessionInfo()
+```
