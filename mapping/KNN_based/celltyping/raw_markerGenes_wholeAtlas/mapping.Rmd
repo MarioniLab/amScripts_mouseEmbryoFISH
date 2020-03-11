@@ -1,0 +1,107 @@
+---
+title: "Mapping seqFISH data (by logcounts.libsize) onto scRNA-seq"
+output:
+  BiocStyle::html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes  
+  html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: true
+    theme: united
+---
+
+# Load dependencies and source data
+
+```{r load_data, message=FALSE}
+
+library(Matrix)
+library(scran)
+library(BiocParallel)
+library(BiocNeighbors)
+ncores = 6
+mcparam = MulticoreParam(workers = ncores)
+register(mcparam)
+library(igraph)
+library(reshape2)
+library(knitr)
+library(scater)
+library(scales)
+library(biomaRt)
+library(batchelor)
+library(irlba)
+library(cowplot)
+library(batchelor)
+
+#root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
+root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/visualization_functions.R"))
+
+# load sce files with counts data; clean from cells with 0 area and total # mRNA < user's threshold 
+load_embryo_8.5(threshTotalRNA = 0, filterNullArea = T, filterBigClumps = T, dir = "cluster")
+
+# work only with the embryo_1 for now
+idx = meta$embryo == "embryo_1"
+meta = meta[idx,]
+sce = sce[,idx]
+
+# discard Xist 
+idx = setdiff(1:dim(sce)[1], which(rownames(sce) %in% c("Xist")) )
+sce = sce[idx,]
+  
+# only leave marker genes
+# get genes for celltyping
+genes = read.table(paste0(root.dir , "amScripts_mouseEmbryoFISH/mapping/KNN_based/celltyping/10032020/celltyping_genes_10032020.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
+sce = sce[unique( genes$gene ),]
+
+# load scRNA-seq atlas
+load_data_atlas(rownames_ensembl = F)
+sce.atlas = scater::normalize(sce.atlas)
+adjust_atlas_to_seq(sce.atlas, meta.atlas)
+
+# get the same order of rows for sce and sce.atlas
+sce = sce[order(rownames(sce)),]
+sce.atlas = sce.atlas[order(rownames(sce.atlas)),]
+
+# get relevant assays for seq and atlas
+counts.atlas = as.matrix( assay(sce.atlas, "logcounts") )
+counts.seq = as.matrix( assay(sce, "logcounts.area") )
+
+# batch correct
+seqBatchCorrect(counts.seq, counts.atlas, meta.atlas)
+
+```
+
+This script performs KNN based mapping: seqFISH onto Jonny's atlas.
+
+# Mapping 
+
+```{r mapping}
+
+# get knn-graph
+k.neigh = 50
+knns = queryKNN(counts.atlas, counts.seq, k = k.neigh, get.index = TRUE, 
+                get.distance = TRUE, BPPARAM=mcparam)
+k.mapped = t(apply(knns$index, 1, function(x) meta.atlas$cell[x]))
+celltypes = t(apply(k.mapped, 1, function(x) meta.atlas$celltype[match(x, meta.atlas$cell)]))
+mapping = lapply(1:dim(knns$index)[1], function(x){
+  out = list(cells.mapped = k.mapped[x,],
+             celltypes.mapped = celltypes[x,],
+             distances.mapped = knns$distance[x,])
+  return(out)
+})
+names(mapping) = meta$uniqueID
+saveRDS(mapping, file = paste0( root.dir, "data/8_5/celltyping/raw_markerGenes_wholeAtlas__embryo1.rds"))
+
+```
+
+
+
+#Session Info
+```{r sessinf}
+sessionInfo()
+```
