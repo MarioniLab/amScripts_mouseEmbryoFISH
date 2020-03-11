@@ -106,7 +106,7 @@ counts.seq = cosineNorm(counts.seq)
 counts.seq = t(counts.seq)
 
 counts.atlas.bySamples = lapply(unq.samples, function(x){
-  out = counts.atlas[meta.atlas$sample == x, ]
+  out = counts.atlas[,meta.atlas$sample == x]
   out = cosineNorm(out)
   return(t( out) )
 })
@@ -127,7 +127,7 @@ z.counts.seq = cosineNorm(z.counts.seq)
 z.counts.seq = t(z.counts.seq)
 
 z.counts.atlas.bySamples = lapply(unq.samples, function(x){
-  out = z.counts.atlas[meta.atlas$sample == x, ]
+  out = z.counts.atlas[,meta.atlas$sample == x]
   out = cosineNorm(out)
   return(t( out) )
 })
