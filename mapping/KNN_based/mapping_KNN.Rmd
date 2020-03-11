@@ -34,6 +34,7 @@ library(biomaRt)
 library(batchelor)
 library(irlba)
 library(cowplot)
+library(batchelor)
 
 #root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
 root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
@@ -92,8 +93,6 @@ z.counts.seq = get_z.counts(counts.seq)
 counts.joint = cbind(counts.atlas , counts.seq )
 z.counts.joint = cbind(z.counts.atlas , z.counts.seq )
 
-
-
 ```
 
 # Batch correction
@@ -105,9 +104,12 @@ Since in SEQ experiment we have a specific set of genes, we will perform batch c
 
 # transform all matrices to feed to MNN
 counts.seq = t(counts.seq)
+counts.seq = cosineNorm(counts.seq)
+  
 counts.atlas = t(counts.atlas)
 counts.joint = t(counts.joint)
 z.counts.seq = t(z.counts.seq)
+z.counts.seq = cosineNorm(z.counts.seq)
 z.counts.atlas = t(z.counts.atlas)
 z.counts.joint = t(z.counts.joint)
 
@@ -120,7 +122,8 @@ unq.samples = unique(meta.atlas$sample)
 #counts.seq.pca = counts.joint.pca[-(1:ncol(sce.atlas)),]
 
 counts.atlas.bySamples = lapply(unq.samples, function(x){
-  counts.atlas[meta.atlas$sample == x, ]
+  out = counts.atlas[meta.atlas$sample == x, ]
+  return(cosineNorm(out))
 })
 # call batch correction for atlas samples
 atlas.corrected = do.call(reducedMNN, c(counts.atlas.bySamples ))
@@ -133,14 +136,14 @@ atlas = 1:nrow(atlas.corrected)
 atlas.corrected = joint.corrected[atlas,]
 seq.corrected = joint.corrected[-atlas,]
 
-
 # z-score
 #z.counts.joint.pca = prcomp_irlba(t(z.counts.joint), n = nPC)$x
 #z.counts.atlas.pca = z.counts.joint.pca[1:ncol(sce.atlas),]
 #z.counts.seq.pca = z.counts.joint.pca[-(1:ncol(sce.atlas)),]
 
 z.counts.atlas.bySamples = lapply(unq.samples, function(x){
-  z.counts.atlas[meta.atlas$sample == x, ]
+  out = z.counts.atlas[meta.atlas$sample == x, ]
+  return(cosineNorm(out))
 })
 # call batch correction for atlas samples
 z.atlas.corrected = do.call(reducedMNN, c(z.counts.atlas.bySamples ))
