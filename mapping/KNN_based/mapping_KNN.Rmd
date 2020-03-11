@@ -89,9 +89,6 @@ z.counts.atlas = get_z.counts(counts.atlas)
 counts.seq = as.matrix( assay(sce, "logcounts.area") )
 z.counts.seq = get_z.counts(counts.seq)
 
-# join
-counts.joint = cbind(counts.atlas , counts.seq )
-z.counts.joint = cbind(z.counts.atlas , z.counts.seq )
 
 ```
 
@@ -102,28 +99,16 @@ Since in SEQ experiment we have a specific set of genes, we will perform batch c
 
 ```{r batch}
 
-# transform all matrices to feed to MNN
-counts.seq = t(counts.seq)
-counts.seq = cosineNorm(counts.seq)
-  
-counts.atlas = t(counts.atlas)
-counts.joint = t(counts.joint)
-z.counts.seq = t(z.counts.seq)
-z.counts.seq = cosineNorm(z.counts.seq)
-z.counts.atlas = t(z.counts.atlas)
-z.counts.joint = t(z.counts.joint)
-
 unq.samples = unique(meta.atlas$sample)
+# transform all matrices to feed to MNN
 
-#nPC = 100
-# raw
-#counts.joint.pca = prcomp_irlba(t(counts.joint), n = nPC)$x
-#counts.atlas.pca = counts.joint.pca[1:ncol(sce.atlas),]
-#counts.seq.pca = counts.joint.pca[-(1:ncol(sce.atlas)),]
+counts.seq = cosineNorm(counts.seq)
+counts.seq = t(counts.seq)
 
 counts.atlas.bySamples = lapply(unq.samples, function(x){
   out = counts.atlas[meta.atlas$sample == x, ]
-  return(cosineNorm(out))
+  out = cosineNorm(out)
+  return(t( out) )
 })
 # call batch correction for atlas samples
 atlas.corrected = do.call(reducedMNN, c(counts.atlas.bySamples ))
@@ -137,14 +122,16 @@ atlas.corrected = joint.corrected[atlas,]
 seq.corrected = joint.corrected[-atlas,]
 
 # z-score
-#z.counts.joint.pca = prcomp_irlba(t(z.counts.joint), n = nPC)$x
-#z.counts.atlas.pca = z.counts.joint.pca[1:ncol(sce.atlas),]
-#z.counts.seq.pca = z.counts.joint.pca[-(1:ncol(sce.atlas)),]
+
+z.counts.seq = cosineNorm(z.counts.seq)
+z.counts.seq = t(z.counts.seq)
 
 z.counts.atlas.bySamples = lapply(unq.samples, function(x){
   out = z.counts.atlas[meta.atlas$sample == x, ]
-  return(cosineNorm(out))
+  out = cosineNorm(out)
+  return(t( out) )
 })
+
 # call batch correction for atlas samples
 z.atlas.corrected = do.call(reducedMNN, c(z.counts.atlas.bySamples ))
 z.atlas.corrected = z.atlas.corrected$corrected
@@ -171,20 +158,11 @@ k.neigh = 50
 knns = queryKNN(atlas.corrected, seq.corrected, k = k.neigh, get.index = TRUE, 
                 get.distance = TRUE, BPPARAM=mcparam)
 
-# get stat
 k.mapped = t(apply(knns$index, 1, function(x) meta.atlas$cell[x]))
 celltypes = t(apply(k.mapped, 1, function(x) meta.atlas$celltype[match(x, meta.atlas$cell)]))
-celltype.mapped = apply(celltypes, 1, function(x) getmode(x, 1:length(x)))
-celltype.mapped.fraction = apply(celltypes, 1, function(x) mean(x == getmode(x, 1:length(x))))
-#celltype.mapped.match = t(apply(celltypes, 1, function(x) match(x, getmode(x, 1:length(x)))))
-#knns$distance = knns$distance * celltype.mapped.match
-#distance.mapped = rowMeans(knns$distance, na.rm = TRUE)
-  
 mappings.raw = lapply(1:dim(knns$index)[1], function(x){
   out = list(cells.mapped = k.mapped[x,],
              celltypes.mapped = celltypes[x,],
-             celltype.mode = celltype.mapped[x],
-             celltype.mode.fraction = celltype.mapped.fraction[x],
              distances.mapped = knns$distance[x,])
   return(out)
 })
@@ -199,17 +177,10 @@ knns = queryKNN(z.atlas.corrected, z.seq.corrected, k = k.neigh, get.index = TRU
 # get stat
 k.mapped = t(apply(knns$index, 1, function(x) meta.atlas$cell[x]))
 celltypes = t(apply(k.mapped, 1, function(x) meta.atlas$celltype[match(x, meta.atlas$cell)]))
-celltype.mapped = apply(celltypes, 1, function(x) getmode(x, 1:length(x)))
-celltype.mapped.fraction = apply(celltypes, 1, function(x) mean(x == getmode(x, 1:length(x))))
-#celltype.mapped.match = t(apply(celltypes, 1, function(x) match(x, getmode(x, 1:length(x)))))
-#knns$distance = knns$distance * celltype.mapped.match
-#distance.mapped = rowMeans(knns$distance, na.rm = TRUE)
   
 mappings.z = lapply(1:dim(knns$index)[1], function(x){
   out = list(cells.mapped = k.mapped[x,],
              celltypes.mapped = celltypes[x,],
-             celltype.mode = celltype.mapped[x],
-             celltype.mode.fraction = celltype.mapped.fraction[x],
              distances.mapped = knns$distance[x,])
   return(out)
 })

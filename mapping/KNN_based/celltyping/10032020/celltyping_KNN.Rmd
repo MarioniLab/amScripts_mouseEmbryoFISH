@@ -123,20 +123,16 @@ Since in SEQ experiment we have a specific set of genes, we will perform batch c
 
 ```{r batch}
 
-# transform all matrices to feed to MNN
-counts.seq = t(counts.seq)
-counts.seq = cosineNorm(counts.seq)
-counts.atlas = t(counts.atlas)
-counts.joint = t(counts.joint)
-z.counts.seq = t(z.counts.seq)
-z.counts.seq = cosineNorm(z.counts.seq)
-z.counts.atlas = t(z.counts.atlas)
-z.counts.joint = t(z.counts.joint)
-
 unq.samples = unique(meta.atlas$sample)
+# transform all matrices to feed to MNN
+
+counts.seq = cosineNorm(counts.seq)
+counts.seq = t(counts.seq)
+
 counts.atlas.bySamples = lapply(unq.samples, function(x){
   out = counts.atlas[meta.atlas$sample == x, ]
-  return(cosineNorm(out))
+  out = cosineNorm(out)
+  return(t( out) )
 })
 # call batch correction for atlas samples
 atlas.corrected = do.call(reducedMNN, c(counts.atlas.bySamples ))
@@ -150,10 +146,16 @@ atlas.corrected = joint.corrected[atlas,]
 seq.corrected = joint.corrected[-atlas,]
 
 # z-score
+
+z.counts.seq = cosineNorm(z.counts.seq)
+z.counts.seq = t(z.counts.seq)
+
 z.counts.atlas.bySamples = lapply(unq.samples, function(x){
   out = z.counts.atlas[meta.atlas$sample == x, ]
-  return(cosineNorm(out))
+  out = cosineNorm(out)
+  return(t( out) )
 })
+
 # call batch correction for atlas samples
 z.atlas.corrected = do.call(reducedMNN, c(z.counts.atlas.bySamples ))
 z.atlas.corrected = z.atlas.corrected$corrected
