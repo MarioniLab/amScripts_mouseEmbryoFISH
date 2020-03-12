@@ -79,7 +79,7 @@ filterEmptyCells = function(sce, meta){
 adjust_atlas_to_seq = function(sce.atlas, meta.atlas, sce.seq){
   
   # get rid of doublets and stripped - we don't want to map to them
-  idx = !meta.atlas$doublet & !meta.atlas$stripped
+  idx = meta.atlas$doublet == F & meta.atlas$stripped == F
   meta.atlas = meta.atlas[idx,]
   sce.atlas = sce.atlas[,idx]
   # keep only those genes that are in seqFISH 
@@ -142,11 +142,11 @@ seqPCAandBatchCorrect = function(counts.seq, counts.atlas, meta.atlas, nPC){
   unq.samples = unique(meta.atlas$sample)
   counts.seq = cosineNorm(counts.seq)
   counts.atlas = cosineNorm(counts.atlas)
-  counts.joint = cbind(counts.seq, counts.atlas)
-  counts.pca = prcomp_irlba(counts.joint, n = nPC)$x
+  counts.joint = cbind(counts.atlas, counts.seq)
+  counts.pca = prcomp_irlba(t( counts.joint ), n = nPC)$x
   rownames(counts.pca) = colnames(counts.joint) 
-  atlas.pca = counts.pca[1:ncol(counts.atlas),]
-  seq.pca = counts.pca[-(1:ncol(counts.atlas)),]
+  atlas.pca = counts.pca[1:dim(counts.atlas)[2],]
+  seq.pca = counts.pca[-(1:dim(counts.atlas)[2]),]
   
   atlas.pca.bySamples = lapply(unq.samples, function(x){
     out = atlas.pca[meta.atlas$sample == x,]
