@@ -62,6 +62,7 @@ load_embryo_8.5 = function(filterNullArea = TRUE, threshTotalRNA, filterBigClump
   invisible(0)
 }
 
+# fikter empty cells (for the reduced gene subset)
 filterEmptyCells = function(sce, meta){
   counts = counts(sce)
   reduced.libsize = colSums( counts )
@@ -75,6 +76,64 @@ filterEmptyCells = function(sce, meta){
   invisible(0)
 }
 
+adjust_atlas_to_seq = function(sce.atlas, meta.atlas, sce.seq){
+  
+  # get rid of doublets and stripped - we don't want to map to them
+  idx = !meta.atlas$doublet & !meta.atlas$stripped
+  meta.atlas = meta.atlas[idx,]
+  sce.atlas = sce.atlas[,idx]
+  # keep only those genes that are in seqFISH 
+  idx = rownames(sce.atlas) %in% rownames(sce)
+  sce.atlas = sce.atlas[idx,]
+  
+  assign("sce.atlas", sce.atlas, envir = .GlobalEnv)
+  assign("meta.atlas", meta.atlas, envir = .GlobalEnv)
+  invisible(0)
+}
+
+reduceAtlas = function(sce.atlas, meta.atlas, thresh){
+  celltypes = unique(meta.atlas$celltype)
+  celltypes = celltypes[!is.na(celltypes)]
+  idx = sapply(celltypes, function(x){
+    idx.CT = which(meta.atlas$celltype == x)
+    if (length(idx.CT) > thresh) {
+      return(sample(idx.CT, thresh))
+    } else {
+      return(idx.CT)
+    }
+  })
+  idx = unlist(idx)
+  meta.atlas = meta.atlas[idx,]
+  sce.atlas = sce.atlas[,idx]
+  
+  assign("sce.atlas", sce.atlas, envir = .GlobalEnv)
+  assign("meta.atlas", meta.atlas, envir = .GlobalEnv)
+  invisible(0)
+}
+
+seqBatchCorrect = function(counts.seq, counts.atlas, meta.atlas){
+  require(batchelor)
+  unq.samples = unique(meta.atlas$sample)
+  counts.seq = t(cosineNorm(counts.seq))
+  counts.atlas.bySamples = lapply(unq.samples, function(x){
+    out = counts.atlas[,meta.atlas$sample == x]
+    return(t(cosineNorm(out)))
+  })
+  # batch correct atlas
+  atlas.corrected = do.call(reducedMNN, c(counts.atlas.bySamples))
+  atlas.corrected = atlas.corrected$corrected
+  # correction for corrected atlas + seq
+  joint.corrected = reducedMNN(atlas.corrected, counts.seq)
+  joint.corrected = joint.corrected$corrected
+  
+  atlas = 1:nrow(atlas.corrected)
+  counts.atlas = joint.corrected[atlas,]
+  counts.seq = joint.corrected[-atlas,]
+  
+  assign("counts.seq", counts.seq, envir = .GlobalEnv)
+  assign("counts.atlas", counts.atlas, envir = .GlobalEnv)
+  invisible(0)
+}
 
 # add regressed by CT assay
 addCTregressedLogcounts = function(sce, assay.type, meta){
