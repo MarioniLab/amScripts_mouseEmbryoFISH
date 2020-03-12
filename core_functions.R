@@ -135,7 +135,7 @@ seqBatchCorrect = function(counts.seq, counts.atlas, meta.atlas){
   invisible(0)
 }
 
-seqPCAandBatchCorrect = function(counts.seq, counts.atlas, meta.atlas){
+seqPCAandBatchCorrect = function(counts.seq, counts.atlas, meta.atlas, nPC){
   require(irlba)
   require(batchelor)
   set.seed(42)

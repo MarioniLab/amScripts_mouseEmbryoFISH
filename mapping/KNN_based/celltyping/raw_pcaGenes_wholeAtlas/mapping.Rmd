@@ -68,7 +68,7 @@ counts.seq = as.matrix( assay(sce, "logcounts.area") )
 
 # batch correct
 set.seed(42)
-seqPCAandBatchCorrect(counts.seq, counts.atlas, meta.atlas)
+seqPCAandBatchCorrect(counts.seq, counts.atlas, meta.atlas, 50)
 
 ```
 
