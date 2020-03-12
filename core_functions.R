@@ -83,7 +83,7 @@ adjust_atlas_to_seq = function(sce.atlas, meta.atlas, sce.seq){
   meta.atlas = meta.atlas[idx,]
   sce.atlas = sce.atlas[,idx]
   # keep only those genes that are in seqFISH 
-  idx = rownames(sce.atlas) %in% rownames(sce)
+  idx = rownames(sce.atlas) %in% rownames(sce.seq)
   sce.atlas = sce.atlas[idx,]
   
   assign("sce.atlas", sce.atlas, envir = .GlobalEnv)
@@ -134,6 +134,40 @@ seqBatchCorrect = function(counts.seq, counts.atlas, meta.atlas){
   assign("counts.atlas", counts.atlas, envir = .GlobalEnv)
   invisible(0)
 }
+
+seqPCAandBatchCorrect = function(counts.seq, counts.atlas, meta.atlas){
+  require(irlba)
+  require(batchelor)
+  set.seed(42)
+  unq.samples = unique(meta.atlas$sample)
+  counts.seq = cosineNorm(counts.seq)
+  counts.atlas = cosineNorm(counts.atlas)
+  counts.joint = cbind(counts.seq, counts.atlas)
+  counts.pca = prcomp_irlba(counts.joint, n = nPC)$x
+  rownames(counts.pca) = colnames(counts.joint) 
+  atlas.pca = counts.pca[1:ncol(counts.atlas),]
+  seq.pca = counts.pca[-(1:ncol(counts.atlas)),]
+  
+  atlas.pca.bySamples = lapply(unq.samples, function(x){
+    out = atlas.pca[meta.atlas$sample == x,]
+    return(out)
+  })
+  # batch correct atlas
+  atlas.corrected = do.call(reducedMNN, c(atlas.pca.bySamples))
+  atlas.corrected = atlas.corrected$corrected
+  # correction for corrected atlas + seq
+  joint.corrected = reducedMNN(atlas.corrected, seq.pca)
+  joint.corrected = joint.corrected$corrected
+  
+  atlas = 1:nrow(atlas.corrected)
+  counts.atlas = joint.corrected[atlas,]
+  counts.seq = joint.corrected[-atlas,]
+  
+  assign("counts.seq", counts.seq, envir = .GlobalEnv)
+  assign("counts.atlas", counts.atlas, envir = .GlobalEnv)
+  invisible(0)
+}
+
 
 # add regressed by CT assay
 addCTregressedLogcounts = function(sce, assay.type, meta){
