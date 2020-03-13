@@ -113,6 +113,7 @@ reduceAtlas = function(sce.atlas, meta.atlas, thresh){
 
 seqBatchCorrect = function(counts.seq, counts.atlas, meta.atlas){
   require(batchelor)
+  set.seed(42)
   unq.samples = unique(meta.atlas$sample)
   counts.seq = t(cosineNorm(counts.seq))
   counts.atlas.bySamples = lapply(unq.samples, function(x){
@@ -127,12 +128,8 @@ seqBatchCorrect = function(counts.seq, counts.atlas, meta.atlas){
   joint.corrected = joint.corrected$corrected
   
   atlas = 1:nrow(atlas.corrected)
-  counts.atlas = joint.corrected[atlas,]
-  counts.seq = joint.corrected[-atlas,]
-  
-  assign("counts.seq", counts.seq, envir = .GlobalEnv)
-  assign("counts.atlas", counts.atlas, envir = .GlobalEnv)
-  invisible(0)
+  out = list("atlas" = joint.corrected[atlas,], "seq" = joint.corrected[-atlas,])
+  return(out)
 }
 
 seqPCAandBatchCorrect = function(counts.seq, counts.atlas, meta.atlas, nPC){
@@ -160,15 +157,24 @@ seqPCAandBatchCorrect = function(counts.seq, counts.atlas, meta.atlas, nPC){
   joint.corrected = joint.corrected$corrected
   
   atlas = 1:nrow(atlas.corrected)
-  counts.atlas = joint.corrected[atlas,]
-  counts.seq = joint.corrected[-atlas,]
-  
-  assign("counts.seq", counts.seq, envir = .GlobalEnv)
-  assign("counts.atlas", counts.atlas, envir = .GlobalEnv)
-  invisible(0)
+  out = list("atlas" = joint.corrected[atlas,], "seq" = joint.corrected[-atlas,])
+  return(out)
 }
 
-
+map_KNN = function(atlas, seq, meta.atlas, meta, k.neigh, mcparam){
+  knns = queryKNN(atlas, seq, k = k.neigh, get.index = TRUE, get.distance = TRUE, BPPARAM = mcparam)
+  k.mapped = t(apply(knns$index, 1, function(x) meta.atlas$cell[x]))
+  celltypes = t(apply(k.mapped, 1, function(x) meta.atlas$celltype[match(x, meta.atlas$cell)]))
+  mapping = lapply(1:dim(knns$index)[1], function(x){
+    out = list(cells.mapped = k.mapped[x,],
+               celltypes.mapped = celltypes[x,],
+               distances.mapped = knns$distance[x,])
+    return(out)
+  })
+  names(mapping) = meta$uniqueID
+  return(mapping)
+}
+  
 # add regressed by CT assay
 addCTregressedLogcounts = function(sce, assay.type, meta){
   # make sure meta and sce are aligned
