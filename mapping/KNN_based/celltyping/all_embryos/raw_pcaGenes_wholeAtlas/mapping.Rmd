@@ -76,7 +76,7 @@ mapping.all = lapply(unq.embryo, function(x){
   return(mapping.embryo)
 })
 names(mapping.all) = unq.embryo
-saveRDS(mapping, file = paste0( root.dir, "data/8_5/celltyping/all.rds"))
+saveRDS(mapping.all, file = paste0( root.dir, "data/8_5/celltyping/pca.rds"))
 
 ```
 
