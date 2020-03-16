@@ -68,7 +68,7 @@ counts.atlas = as.matrix( assay(sce.atlas, "logcounts") )
 counts.seq = as.matrix( assay(sce, "logcounts.area") )
 
 # pca and batch correct
-nPC = 100
+nPC = 50
 unq.embryo = unique(meta$embryo)
 mapping.all = lapply(unq.embryo, function(x){
   corrected.counts = seqPCAandBatchCorrect(counts.seq[,meta$embryo == x], counts.atlas, meta.atlas, nPC)
