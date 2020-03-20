@@ -28,7 +28,7 @@ load_embryo_8.5 = function(filterNullArea = TRUE, threshTotalRNA, filterBigClump
   sizeFactors.area <- meta$Area/mean(meta$Area)
   assay(sce, "logcounts.libsize") <- log2(t(t(counts)/sizeFactors.libsize) + 1)
   assay(sce, "logcounts.area") <- log2(t(t(counts)/sizeFactors.area) + 1)
-
+  
   # filter cells with NULL area
   if (filterNullArea) {
     idx = meta$Area > 0
@@ -40,7 +40,7 @@ load_embryo_8.5 = function(filterNullArea = TRUE, threshTotalRNA, filterBigClump
   # filter out cells with low number of mRNA molecules
   idx = meta$libsize > threshTotalRNA
   print( paste0( "Discarded ", sum(meta$libsize <= threshTotalRNA), " empty cells (out of ", 
-                   dim(meta)[1], "): ", round( mean(meta$libsize <= threshTotalRNA)*100, 2), "%" ))
+                 dim(meta)[1], "): ", round( mean(meta$libsize <= threshTotalRNA)*100, 2), "%" ))
   meta = meta[idx,]
   sce = sce[, idx]
   # filter big clumps (too big of the area)
@@ -165,16 +165,22 @@ map_KNN = function(atlas, seq, meta.atlas, meta, k.neigh, mcparam){
   knns = queryKNN(atlas, seq, k = k.neigh, get.index = TRUE, get.distance = TRUE, BPPARAM = mcparam)
   k.mapped = t(apply(knns$index, 1, function(x) meta.atlas$cell[x]))
   celltypes = t(apply(k.mapped, 1, function(x) meta.atlas$celltype[match(x, meta.atlas$cell)]))
+  stages = t(apply(k.mapped, 1, function(x) meta.atlas$stage[match(x, meta.atlas$cell)]))
+  theiler = t(apply(k.mapped, 1, function(x) meta.atlas$theiler[match(x, meta.atlas$cell)]))
+  samples = t(apply(k.mapped, 1, function(x) meta.atlas$sample[match(x, meta.atlas$cell)]))
   mapping = lapply(1:dim(knns$index)[1], function(x){
     out = list(cells.mapped = k.mapped[x,],
                celltypes.mapped = celltypes[x,],
-               distances.mapped = knns$distance[x,])
+               distances.mapped = knns$distance[x,], 
+               stages.mapped = stages[x,],
+               theiler.mapped = theiler[x,],
+               samples.mapped = samples[x,])
     return(out)
   })
   names(mapping) = meta$uniqueID
   return(mapping)
 }
-  
+
 # add regressed by CT assay
 addCTregressedLogcounts = function(sce, assay.type, meta){
   # make sure meta and sce are aligned
