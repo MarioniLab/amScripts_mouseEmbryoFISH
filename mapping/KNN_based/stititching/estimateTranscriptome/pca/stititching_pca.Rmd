@@ -32,6 +32,9 @@ library(tibble)
 library(ggplot2)
 library(tidyverse)
 library(ggpubr)
+ncores = 6
+mcparam = MulticoreParam(workers = ncores)
+register(mcparam)
 
 #root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
 root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
@@ -40,7 +43,7 @@ source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
 source(paste0(root.dir, "amScripts_mouseEmbryoFISH/visualization_functions.R"))
 
 # load sce files with counts data; clean from cells with 0 area and total # mRNA < user's threshold 
-load_embryo_8.5(threshTotalRNA = 0, filterNullArea = T, filterBigClumps = T, dir = "cluster")
+#load_embryo_8.5(threshTotalRNA = 0, filterNullArea = T, filterBigClumps = T, dir = "cluster")
 
 # load my mappings
 
