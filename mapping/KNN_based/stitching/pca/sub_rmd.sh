@@ -12,7 +12,7 @@ script_name=pca_est
 memory=200000
 r_command="rusage[mem=${memory}]"
 #num_processors
-nproc=6
+nproc=10
 
 smg=/nfs/research1/marioni/alsu/singularity/R1.simg
 script=/nfs/research1/marioni/alsu/spatial/mouse_embryo/amScripts_mouseEmbryoFISH/mapping/KNN_based/stitching/pca/run_rmd.R

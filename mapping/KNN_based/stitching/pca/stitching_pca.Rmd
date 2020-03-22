@@ -32,7 +32,10 @@ library(tibble)
 library(ggplot2)
 library(tidyverse)
 library(ggpubr)
-ncores = 6
+library(BiocParallel)
+library(BiocNeighbors)
+
+ncores = 10
 mcparam = MulticoreParam(workers = ncores)
 register(mcparam)
 

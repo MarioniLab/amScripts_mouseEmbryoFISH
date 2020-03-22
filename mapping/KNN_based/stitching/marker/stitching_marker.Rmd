@@ -32,7 +32,10 @@ library(tibble)
 library(ggplot2)
 library(tidyverse)
 library(ggpubr)
-ncores = 6
+library(BiocParallel)
+library(BiocNeighbors)
+
+ncores = 10
 mcparam = MulticoreParam(workers = ncores)
 register(mcparam)
 
@@ -72,7 +75,7 @@ getCounts = function(cells, weights){
 
 K = 25
 
-estimated.counts.mean = lapply(mapping.marker, function(x){
+estimated.counts.mean = bplapply(mapping.marker, function(x){
   cells = x$cells.mapped
   cells = cells[1:K]
   idx = order(cells)
@@ -85,7 +88,7 @@ colnames(estimated.counts.mean) = names(mapping.marker)
 rownames(estimated.counts.mean) = rownames(sce.atlas)
 saveRDS(estimated.counts.mean, file = paste0( root.dir, "data/8_5/stitching/marker_K25_mean.rds"))
 
-estimated.counts.weightedMean = lapply(mapping.marker, function(x){
+estimated.counts.weightedMean = bplapply(mapping.marker, function(x){
   cells = x$cells.mapped
   cells = cells[1:K]
   idx = order(cells)
