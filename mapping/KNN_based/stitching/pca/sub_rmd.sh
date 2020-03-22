@@ -5,14 +5,14 @@ err_folder=${my_folder}/clust_err/spatial
 
 #SELECT SCRIPT
 #If you change this, you MUST update the wrapper's grep
-script_name=pca_est
+script_name=pca_bp
 
 #CHOOSE PARAMETERS
 #RAM in megabytes
-memory=200000
+memory=250000
 r_command="rusage[mem=${memory}]"
 #num_processors
-nproc=10
+nproc=5
 
 smg=/nfs/research1/marioni/alsu/singularity/R1.simg
 script=/nfs/research1/marioni/alsu/spatial/mouse_embryo/amScripts_mouseEmbryoFISH/mapping/KNN_based/stitching/pca/run_rmd.R
