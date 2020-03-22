@@ -76,7 +76,7 @@ getCounts = function(cells, weights){
 
 K = 25
 
-estimated.counts.mean = lapply(mapping.pca, function(x){
+estimated.counts.mean = bplapply(mapping.pca, function(x){
   cells = x$cells.mapped
   cells = cells[1:K]
   idx = order(cells)
@@ -89,7 +89,7 @@ colnames(estimated.counts.mean) = names(mapping.pca)
 rownames(estimated.counts.mean) = rownames(sce.atlas)
 saveRDS(estimated.counts.mean, file = paste0( root.dir, "data/8_5/stitching/pca_K25_mean.rds"))
 
-estimated.counts.weightedMean = lapply(mapping.pca, function(x){
+estimated.counts.weightedMean = bplapply(mapping.pca, function(x){
   cells = x$cells.mapped
   cells = cells[1:K]
   idx = order(cells)
