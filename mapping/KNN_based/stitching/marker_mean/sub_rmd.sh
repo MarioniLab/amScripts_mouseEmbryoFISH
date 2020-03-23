@@ -9,10 +9,10 @@ script_name=mar_mean
 
 #CHOOSE PARAMETERS
 #RAM in megabytes
-memory=200000
+memory=170000
 r_command="rusage[mem=${memory}]"
 #num_processors
-nproc=5
+nproc=3
 
 smg=/nfs/research1/marioni/alsu/singularity/R1.simg
 script=/nfs/research1/marioni/alsu/spatial/mouse_embryo/amScripts_mouseEmbryoFISH/mapping/KNN_based/stitching/marker_mean/run_rmd.R

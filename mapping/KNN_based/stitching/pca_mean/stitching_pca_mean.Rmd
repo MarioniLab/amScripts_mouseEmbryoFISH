@@ -35,7 +35,7 @@ library(ggpubr)
 library(BiocParallel)
 library(BiocNeighbors)
 
-ncores = 5
+ncores = 3
 mcparam = MulticoreParam(workers = ncores)
 register(mcparam)
 
