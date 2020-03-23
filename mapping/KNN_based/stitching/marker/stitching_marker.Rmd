@@ -59,6 +59,18 @@ names(mapping.marker) = str_remove(names(mapping.marker) , "embryo3.")
 load_data_atlas(rownames_ensembl = F)
 sce.atlas = scater::normalize(sce.atlas)
 counts = logcounts(sce.atlas) 
+# reduce atlas to only those cells that are among neighbors for seq
+K = 25
+cells = lapply(mapping.marker, function(x){
+  current.cells = x$cells.mapped
+  return(current.cells[1:K])
+})
+cells = do.call( rbind, cells )
+cells = cells[order(cells)]
+unq.cells = unique(cells)
+
+counts = counts[,colnames(counts) %in% unq.cells]
+counts = counts[,order(colnames(counts))]
 
 ```
 
@@ -68,7 +80,7 @@ counts = logcounts(sce.atlas)
 
 getCounts = function(cells, weights){
   current.counts = counts[,colnames(counts) %in% cells]
-  current.counts = current.counts[,order(colnames(current.counts) )]
+  #current.counts = current.counts[,order(colnames(current.counts) )]
   current.counts = ( current.counts %*% weights )/length(cells)
   return(current.counts)
 }
