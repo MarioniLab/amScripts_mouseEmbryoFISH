@@ -9,7 +9,7 @@ script_name=mar_wei
 
 #CHOOSE PARAMETERS
 #RAM in megabytes
-memory=170000
+memory=200000
 r_command="rusage[mem=${memory}]"
 #num_processors
 nproc=3
