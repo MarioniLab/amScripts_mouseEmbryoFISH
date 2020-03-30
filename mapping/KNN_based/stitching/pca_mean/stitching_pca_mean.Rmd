@@ -35,7 +35,7 @@ library(ggpubr)
 library(BiocParallel)
 library(BiocNeighbors)
 
-ncores = 3
+ncores = 6
 mcparam = MulticoreParam(workers = ncores)
 register(mcparam)
 
@@ -67,8 +67,8 @@ cells = lapply(mapping.pca, function(x){
   return(current.cells[1:K])
 })
 cells = do.call( rbind, cells )
-cells = cells[order(cells)]
 unq.cells = unique(cells)
+unq.cells = unq.cells[order(unq.cells)]
 
 counts = counts[,colnames(counts) %in% unq.cells]
 counts = counts[,order(colnames(counts))]
@@ -79,10 +79,9 @@ counts = counts[,order(colnames(counts))]
 
 ```{r get-transcriptome}
 
-getCounts = function(cells, weights){
+getCounts = function(cells){
   current.counts = counts[,colnames(counts) %in% cells]
-  #current.counts = current.counts[,order(colnames(current.counts) )]
-  current.counts = ( current.counts %*% weights )/sum(weights)
+  current.counts = rowMeans( current.counts )
   return(current.counts)
 }
 
@@ -90,18 +89,14 @@ K = 25
 estimated.counts.mean = bplapply(mapping.pca, function(x){
   cells = x$cells.mapped
   cells = cells[1:K]
-  idx = order(cells)
-  cells = cells[idx]
-  weights = rep(1, times = length(cells))
-  return(getCounts(cells, weights)) 
-}) 
+  return(getCounts(cells)) 
+}, BPPARAM = mcparam) 
 estimated.counts.mean = do.call(cbind, estimated.counts.mean)
 colnames(estimated.counts.mean) = names(mapping.pca)
 rownames(estimated.counts.mean) = rownames(sce.atlas)
 saveRDS(estimated.counts.mean, file = paste0( root.dir, "data/8_5/stitching/pca_K25_mean.rds"))
 
 ```
-
 
 
 #Session Info

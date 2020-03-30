@@ -9,10 +9,10 @@ script_name=pca_mean
 
 #CHOOSE PARAMETERS
 #RAM in megabytes
-memory=350000
+memory=650000
 r_command="rusage[mem=${memory}]"
 #num_processors
-nproc=3
+nproc=6
 
 smg=/nfs/research1/marioni/alsu/singularity/R1.simg
 script=/nfs/research1/marioni/alsu/spatial/mouse_embryo/amScripts_mouseEmbryoFISH/mapping/KNN_based/stitching/pca_mean/run_rmd.R
