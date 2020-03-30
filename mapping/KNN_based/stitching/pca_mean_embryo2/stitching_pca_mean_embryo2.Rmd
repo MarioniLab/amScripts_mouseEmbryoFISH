@@ -53,7 +53,7 @@ names(mapping.pca) = str_remove(names(mapping.pca) , "embryo2.")
 names(mapping.pca) = str_remove(names(mapping.pca) , "embryo3.")
 
 # get embryo 1
-idx = which(str_detect(names(mapping.pca), "embryo1"))
+idx = which(str_detect(names(mapping.pca), "embryo2"))
 mapping.pca = mapping.pca[idx]
 
 # load scRNA-seq atlas
