@@ -35,7 +35,7 @@ library(ggpubr)
 library(BiocParallel)
 library(BiocNeighbors)
 
-ncores = 3
+ncores = 8
 mcparam = MulticoreParam(workers = ncores)
 register(mcparam)
 
@@ -66,8 +66,8 @@ cells = lapply(mapping.marker, function(x){
   return(current.cells[1:K])
 })
 cells = do.call( rbind, cells )
-cells = cells[order(cells)]
 unq.cells = unique(cells)
+unq.cells = unq.cells[order(unq.cells)]
 
 counts = counts[,colnames(counts) %in% unq.cells]
 counts = counts[,order(colnames(counts))]
@@ -80,7 +80,6 @@ counts = counts[,order(colnames(counts))]
 
 getCounts = function(cells, weights){
   current.counts = counts[,colnames(counts) %in% cells]
-  #current.counts = current.counts[,order(colnames(current.counts) )]
   current.counts = ( current.counts %*% weights )/sum(weights)
   return(current.counts)
 }
@@ -96,7 +95,7 @@ estimated.counts.weightedMean = bplapply(mapping.marker, function(x){
   weights = 1/weights
   weights = weights[idx]
   return(getCounts(cells, weights)) 
-}) 
+}, BPPARAM = mcparam) 
 estimated.counts.weightedMean = do.call(cbind, estimated.counts.weightedMean)
 colnames(estimated.counts.weightedMean) = names(mapping.marker)
 rownames(estimated.counts.weightedMean) = rownames(sce.atlas)

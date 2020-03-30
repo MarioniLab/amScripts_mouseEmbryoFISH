@@ -9,10 +9,10 @@ script_name=mar_wei
 
 #CHOOSE PARAMETERS
 #RAM in megabytes
-memory=350000
+memory=500000
 r_command="rusage[mem=${memory}]"
 #num_processors
-nproc=3
+nproc=8
 
 smg=/nfs/research1/marioni/alsu/singularity/R1.simg
 script=/nfs/research1/marioni/alsu/spatial/mouse_embryo/amScripts_mouseEmbryoFISH/mapping/KNN_based/stitching/marker_weightedMean/run_rmd.R
