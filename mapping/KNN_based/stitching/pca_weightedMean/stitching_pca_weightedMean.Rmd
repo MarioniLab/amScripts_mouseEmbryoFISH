@@ -35,7 +35,7 @@ library(ggpubr)
 library(BiocParallel)
 library(BiocNeighbors)
 
-ncores = 8
+ncores = 10
 mcparam = MulticoreParam(workers = ncores)
 register(mcparam)
 
@@ -61,7 +61,7 @@ load_data_atlas(rownames_ensembl = F)
 sce.atlas = scater::normalize(sce.atlas)
 counts = logcounts(sce.atlas) 
 # reduce atlas to only those cells that are among neighbors for seq
-K = 25
+K = 10
 cells = lapply(mapping.pca, function(x){
   current.cells = x$cells.mapped
   return(current.cells[1:K])
@@ -86,7 +86,7 @@ getCounts = function(cells, weights){
   return(current.counts)
 }
 
-K = 25
+K = 10
 
 estimated.counts.weightedMean = bplapply(mapping.pca, function(x){
   cells = x$cells.mapped

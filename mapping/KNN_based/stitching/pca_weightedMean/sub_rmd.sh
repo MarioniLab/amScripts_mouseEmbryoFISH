@@ -9,10 +9,10 @@ script_name=pca_wei
 
 #CHOOSE PARAMETERS
 #RAM in megabytes
-memory=500000
+memory=600000
 r_command="rusage[mem=${memory}]"
 #num_processors
-nproc=8
+nproc=10
 
 smg=/nfs/research1/marioni/alsu/singularity/R1.simg
 script=/nfs/research1/marioni/alsu/spatial/mouse_embryo/amScripts_mouseEmbryoFISH/mapping/KNN_based/stitching/pca_weightedMean/run_rmd.R
