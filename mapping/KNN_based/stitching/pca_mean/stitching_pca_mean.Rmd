@@ -61,7 +61,7 @@ load_data_atlas(rownames_ensembl = F)
 sce.atlas = scater::normalize(sce.atlas)
 counts = logcounts(sce.atlas) 
 # reduce atlas to only those cells that are among neighbors for seq
-K = 25
+K = 10
 cells = lapply(mapping.pca, function(x){
   current.cells = x$cells.mapped
   return(current.cells[1:K])
@@ -85,7 +85,7 @@ getCounts = function(cells){
   return(current.counts)
 }
 
-K = 25
+K = 10
 estimated.counts.mean = bplapply(mapping.pca, function(x){
   cells = x$cells.mapped
   cells = cells[1:K]
