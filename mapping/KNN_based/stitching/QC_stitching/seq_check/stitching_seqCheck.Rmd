@@ -1,0 +1,113 @@
+---
+title: "Assessment of the  stitching quality: seqFISH genes"
+output:
+  BiocStyle::html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes  
+  html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: true
+    theme: united
+---
+
+
+# Load dependencies and source data
+
+```{r load_data, message=FALSE}
+
+library(Matrix)
+library(scran)
+library(igraph)
+library(reshape2)
+library(knitr)
+library(scater)
+library(scales)
+library(biomaRt)
+library(VennDiagram)
+library(RColorBrewer)
+library(tibble)
+library(ggplot2)
+library(tidyverse)
+library(ggpubr)
+library(viridis)
+library(stringr)
+library(ggridges)
+library(ggpubr)
+library(magick)
+library(stringr)
+ncores = 1
+
+#root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
+root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
+figures.dir = paste0(root.dir, "figures/stitching/QC/")
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
+#source(paste0(root.dir, "amScripts_mouseEmbryoFISH/visualization_functions.R"))
+
+# load sce files with counts data; clean from cells with 0 area and total # mRNA < user's threshold 
+load_embryo_8.5(threshTotalRNA = 0, filterNullArea = T, filterBigClumps = T, dir = "cluster")
+meta.seq = data.frame(meta)
+counts.seq = assay(sce, "logcounts.area")
+
+# load stitching
+counts.stitched = readRDS(paste0(root.dir, "data/8_5/stitching/pca_K10_mean.rds"))
+#sce.atlas = readRDS(paste0(root.dir, "data/reducedAtlas/sce.rds"))
+#counts.stitched = logcounts(sce.atlas)
+
+# delete embryo 3 since we are not sure about counts and stitching
+idx = !meta.seq$embryo == "embryo3"
+meta.seq = meta.seq[idx,]
+counts.seq = counts.seq[,idx]
+
+colnames.stitched = colnames(counts.stitched)
+idx = which(str_detect(colnames.stitched, "embryo3"))
+counts.stitched = counts.stitched[,idx]
+
+```
+
+
+# Seq-FISH genes
+
+## Per gene
+
+```{r seq-per-gene, fig.cap="seqFISH genes: seqFISH counts VS stiched", fig.height=10, fig.wide=TRUE, warning=FALSE}
+
+unq.gene = rownames(sce)
+
+stat = data.frame(gene = unq.gene)
+for (i in 1:length( unq.gene) ){
+  current.counts.seq = counts.seq[unq.gene[i],]
+  current.counts.seq = data.frame(uniqueID = names(current.counts.seq), counts.seq = current.counts.seq)
+  
+  current.counts.stitched = counts.stitched[unq.gene[i],]
+  current.counts.stitched = data.frame(uniqueID = names(current.counts.stitched), counts.stitched = current.counts.stitched)
+  
+  current.counts = merge(current.counts.seq, current.counts.stitched, by = "uniqueID", all.x = F, all.y = F)
+  
+  current.cor = cor(current.counts$counts.seq, current.counts$counts.stitched, method = "pearson")
+  stat$corr[i] = current.cor
+  p <- ggplot(current.counts, aes(x = counts.seq, y = counts.stitched)) + 
+    geom_point(size = 3, alpha = .5, col = "firebrick") +
+    ggtitle(paste0( unq.gene[i], ", R = ", round(current.cor,2)))
+  ggsave(filename = paste0(figures.dir, "seq_perGene/pca_K10_mean/", unq.gene[i], ".png"), plot = p, width = 20, height = 15)
+}
+write.table(stat, file = paste0(root.dir, "data/8_5/stitching/QC/seq_corr_pca_K10_mean.tab"),
+              row.names = F, col.names = T, sep = "\t") 
+p <- ggplot(stat, aes(x = corr)) + 
+  geom_density(fill = "firebrick") + ggtitle("Distribution of correlations")
+p
+
+```
+
+
+
+
+
+#Session Info
+
+```{r sessinf}
+sessionInfo()
+```
