@@ -37,7 +37,7 @@ library(viridis)
 library(stringr)
 library(ggridges)
 library(ggpubr)
-library(magick)
+#library(magick)
 library(stringr)
 ncores = 1
 
