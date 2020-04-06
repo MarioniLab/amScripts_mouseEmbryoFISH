@@ -64,7 +64,7 @@ saveRDS(counts.stitched.seq, file = paste0( root.dir, "data/8_5/stitching/pca_K1
 # Markers
 
 
-```{r get-stitch-seq}
+```{r get-stitch-markers}
 
 markers = read.table(paste0( root.dir, "data/CT_markers.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
 unq.gene = markers$gene
