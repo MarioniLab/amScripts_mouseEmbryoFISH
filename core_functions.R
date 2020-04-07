@@ -282,7 +282,28 @@ getmode <- function(v, dist) {
   }
 }
 
-
+getHVGs = function(sce, min.mean = 1e-3, gene_df = genes){
+  require(biomaRt)
+  trend = scran::trendVar(sce, use.spikes = FALSE, loess.args = list(span = 0.05))
+  decomp = scran::decomposeVar(sce, fit = trend)
+  decomp = decomp[decomp$mean > min.mean,]
+  
+  #exclude sex genes
+  xist = "ENSMUSG00000086503"
+  xist = "Xist"
+  # mouse_ensembl = useMart("ensembl")
+  # mouse_ensembl = useDataset("mmusculus_gene_ensembl", mart = mouse_ensembl)
+  # gene_map = getBM(attributes=c("ensembl_gene_id", "chromosome_name"), filters = "ensembl_gene_id", values = rownames(decomp), mart = mouse_ensembl)
+  # ychr = gene_map[gene_map[,2] == "Y", 1]
+  ychr = read.table("/nfs/research1/marioni/jonny/embryos/data/ygenes.tab", stringsAsFactors = FALSE)[,2]
+  #ychr = read.table("/Users/alsu/Develop/FetalAlcoholSyndrome/data/ygenes.tab", stringsAsFactors = FALSE)[,1]
+  
+  other = c("tomato-td") #for the chimera
+  decomp = decomp[!rownames(decomp) %in% c(xist, ychr, other),]
+  
+  decomp$FDR = p.adjust(decomp$p.value, method = "fdr")
+  return(rownames(decomp)[decomp$p.value < 0.05])
+}
 
 
 
