@@ -284,7 +284,7 @@ getmode <- function(v, dist) {
 
 getHVGs = function(sce, min.mean = 1e-3, gene_df = genes){
   require(biomaRt)
-  trend = scran::trendVar(sce, use.spikes = FALSE, loess.args = list(span = 0.05))
+  trend = scran::trendVar(sce, loess.args = list(span = 0.05))
   decomp = scran::decomposeVar(sce, fit = trend)
   decomp = decomp[decomp$mean > min.mean,]
   
