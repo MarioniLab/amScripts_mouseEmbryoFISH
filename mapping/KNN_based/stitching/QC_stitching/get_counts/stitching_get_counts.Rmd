@@ -81,27 +81,39 @@ CT = read.table(paste0( root.dir, "data/8_5/celltyping/CT__freeze__01042020.tab"
 ## Nowotschin et al., 2019
 
 ```{r custom-nowotschin}
+# 
+# df = read.table(paste0( root.dir, "data/QC_stitching/Nowotschin_et_al__2019.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
+# unq.gene = unique(df$Gene)
+# unq.gene = intersect(rownames(counts.stitched), unq.gene)
+# counts.stitched.custom = counts.stitched[unq.gene,]
+# saveRDS(counts.stitched.custom, file = paste0( root.dir, "data/8_5/stitching/pca_K10_mean__Nowotschin.rds"))
 
-df = read.table(paste0( root.dir, "data/QC_stitching/Nowotschin_et_al__2019.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
-unq.gene = unique(df$Gene)
-unq.gene = intersect(rownames(counts.stitched), unq.gene)
-counts.stitched.custom = counts.stitched[unq.gene,]
-saveRDS(counts.stitched.custom, file = paste0( root.dir, "data/8_5/stitching/pca_K10_mean__Nowotschin.rds"))
 
 ```
 
 ## van den Brink et al., 2020
 
 ```{r custom-vandenbrink}
-
-df = read.table(paste0( root.dir, "data/QC_stitching/vanDenBrink_et_al__2020.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
-unq.gene = unique(df$Gene)
-unq.gene = intersect(rownames(counts.stitched), unq.gene)
-counts.stitched.custom = counts.stitched[unq.gene,]
-saveRDS(counts.stitched.custom, file = paste0( root.dir, "data/8_5/stitching/pca_K10_mean__vanDenBrink.rds"))
+# 
+# df = read.table(paste0( root.dir, "data/QC_stitching/vanDenBrink_et_al__2020.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
+# unq.gene = unique(df$Gene)
+# unq.gene = intersect(rownames(counts.stitched), unq.gene)
+# counts.stitched.custom = counts.stitched[unq.gene,]
+# saveRDS(counts.stitched.custom, file = paste0( root.dir, "data/8_5/stitching/pca_K10_mean__vanDenBrink.rds"))
 
 ```
 
+## Ibarra-Sorria et al., 2018
+
+```{r custom-ibarra_sorria}
+
+df = read.table(paste0( root.dir, "data/QC_stitching/Ibarra_Sorria_et_al_2018.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
+unq.gene = unique(df$Gene)
+unq.gene = intersect(rownames(counts.stitched), unq.gene)
+counts.stitched.custom = counts.stitched[unq.gene,]
+saveRDS(counts.stitched.custom, file = paste0( root.dir, "data/8_5/stitching/pca_K10_mean__Ibarra_Sorria.rds"))
+
+```
 
 # HVGs
 
