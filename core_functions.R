@@ -1,19 +1,24 @@
 # load embryo 8.5 data
 load_embryo_8.5 = function(filterNullArea = TRUE, threshTotalRNA, filterBigClumps = TRUE, 
-                           dir = "local"){
+                           dir = "local", smFISH = "none"){
   
   require(SingleCellExperiment)
   require(scater)
   
   if (dir == "cluster") {
-    data.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/data/8_5/source/sce_all.Rds"
+    data.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/data/8_5/source/"
   } else {
-    data.dir = "/Users/alsu/Develop/spatial/mouse_embryo/data/8_5/source/sce_all.Rds"
+    data.dir = "/Users/alsu/Develop/spatial/mouse_embryo/data/8_5/source/"
   }
   
-  sce = readRDS( data.dir )
+  if (smFISH == "none"){
+    sce = readRDS( paste0( data.dir , "sce_all.Rds"))
+  } else if (smFISH == "lower"){
+    sce = readRDS( paste0( data.dir , "smFISH_counts_lower.Rds"))
+  } else if (smFISH == "upper"){
+    sce = readRDS( paste0( data.dir , "smFISH_counts_upper.Rds"))
+  }
   meta = colData(sce)
-  
   # rename Cavin3 --> Prkcdbp
   rownames.sce = rownames(sce)
   rownames.sce[rownames.sce == "Cavin3"] = "Prkcdbp"
