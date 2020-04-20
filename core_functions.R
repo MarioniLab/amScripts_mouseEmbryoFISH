@@ -1,5 +1,5 @@
 # load embryo 8.5 data
-load_embryo_8.5 = function(filterNullArea = TRUE, threshTotalRNA, filterBigClumps = TRUE, 
+load_embryo_8.5 = function(filterNullArea = TRUE, threshTotalRNA, threshTotalGenes, filterBigClumps = TRUE, filterEdgeZ = FALSE,
                            dir = "local", smFISH = "none"){
   
   require(SingleCellExperiment)
@@ -19,6 +19,7 @@ load_embryo_8.5 = function(filterNullArea = TRUE, threshTotalRNA, filterBigClump
     sce = readRDS( paste0( data.dir , "smFISH_counts_upper.Rds"))
   }
   meta = colData(sce)
+  
   # rename Cavin3 --> Prkcdbp
   rownames.sce = rownames(sce)
   rownames.sce[rownames.sce == "Cavin3"] = "Prkcdbp"
@@ -42,12 +43,7 @@ load_embryo_8.5 = function(filterNullArea = TRUE, threshTotalRNA, filterBigClump
     meta = meta[idx, ]
     sce = sce[, idx]
   }
-  # filter out cells with low number of mRNA molecules
-  idx = meta$libsize > threshTotalRNA
-  print( paste0( "Discarded ", sum(meta$libsize <= threshTotalRNA), " empty cells (out of ", 
-                 dim(meta)[1], "): ", round( mean(meta$libsize <= threshTotalRNA)*100, 2), "%" ))
-  meta = meta[idx,]
-  sce = sce[, idx]
+  
   # filter big clumps (too big of the area)
   if (filterBigClumps){
     meta$sqrt.area = sqrt(meta$Area)
@@ -61,13 +57,46 @@ load_embryo_8.5 = function(filterNullArea = TRUE, threshTotalRNA, filterBigClump
     sce = sce[,idx]
   }
   
+  # filter out edge z-stacks
+  if (filterEdgeZ) {
+    idx = meta$z %in% c(2:5)
+    print( paste0( "Discarded ", sum(!meta$z %in% c(2:5)), " from edge z-stacks (out of ", 
+                   dim(meta)[1], "): ", round( mean(!meta$z %in% c(2:5))*100, 2), "%" ))
+    meta = meta[idx, ]
+    sce = sce[, idx]
+  }
+  
+  # filter out cells with low number of mRNA molecules
+  idx = meta$libsize > threshTotalRNA
+  print( paste0( "Discarded ", sum(meta$libsize <= threshTotalRNA), " cells with low number of RNA molecules (out of ", 
+                 dim(meta)[1], "): ", round( mean(meta$libsize <= threshTotalRNA)*100, 2), "%" ))
+  meta = meta[idx,]
+  sce = sce[, idx]
+  
+  # filter out cells with low number of genes
+  n.genes = getNumGenes(sce)
+  idx = n.genes > threshTotalGenes 
+  print( paste0( "Discarded ", sum(n.genes <= threshTotalGenes ), " cells with low number of genes (out of ", 
+                 dim(meta)[1], "): ", round( mean(n.genes <= threshTotalGenes )*100, 2), "%" ))
+  meta = meta[idx,]
+  sce = sce[, idx]
+  
   assign("sce", sce, envir = .GlobalEnv)
   assign("meta", meta, envir = .GlobalEnv)
-  
   invisible(0)
 }
 
-# fikter empty cells (for the reduced gene subset)
+getNumGenes = function(sce){
+  counts = counts(sce)
+  n.genes = sapply(1:ncol(counts), function(x){
+    current.counts = counts[,x]
+    return(sum(current.counts > 0))
+  })
+  return(n.genes)
+}
+
+
+# filter empty cells (for the reduced gene subset)
 filterEmptyCells = function(sce, meta){
   counts = counts(sce)
   reduced.libsize = colSums( counts )
