@@ -14,9 +14,9 @@ output:
     theme: united
 ---
 
-# Load dependencies and source data
+# Load dependancies
 
-```{r load_data, message=FALSE}
+```{r load-dependancies, message=FALSE}
 
 library(Matrix)
 library(scran)
@@ -36,20 +36,19 @@ library(irlba)
 library(cowplot)
 library(batchelor)
 
-#root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
 root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
 source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
-source(paste0(root.dir, "amScripts_mouseEmbryoFISH/visualization_functions.R"))
+
+```
+
+# No smFISH
+
+```{r no-smFISH, message=FALSE}
 
 # load sce files with counts data; clean from cells with 0 area and total # mRNA < user's threshold 
-load_embryo_8.5(threshTotalRNA = 0, filterNullArea = T, filterBigClumps = T, dir = "cluster")
+load_embryo_8.5(filterNullArea = TRUE, threshTotalRNA = 20, threshTotalGenes = 10, filterBigClumps = TRUE, filterEdgeZ = TRUE,
+                           dir = "cluster", smFISH = "none")
 
-# sce.atlas = readRDS(paste0(root.dir, "data/reducedAtlas/sce.rds"))
-# meta.atlas = read.table(paste0( root.dir, "data/reducedAtlas/meta.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
-# sce.atlas = scater::normalize(sce.atlas)
-# idx = rownames(sce.atlas) %in% rownames(sce)
-# sce.atlas = sce.atlas[idx,]
-  
 # discard Xist 
 idx = setdiff(1:dim(sce)[1], which(rownames(sce) %in% c("Xist")) )
 sce = sce[idx,]
@@ -76,11 +75,106 @@ mapping.all = lapply(unq.embryo, function(x){
   return(mapping.embryo)
 })
 names(mapping.all) = unq.embryo
-saveRDS(mapping.all, file = paste0( root.dir, "data/8_5/celltyping/pca.rds"))
+saveRDS(mapping.all, file = paste0( root.dir, "data/8_5/celltyping/pca_noFISH.rds"))
 
 ```
 
+# Lower smFISH
 
+```{r lower-smFISH, message=FALSE}
+
+# load sce files with counts data; clean from cells with 0 area and total # mRNA < user's threshold 
+load_embryo_8.5(filterNullArea = TRUE, threshTotalRNA = 20, threshTotalGenes = 10, filterBigClumps = TRUE, filterEdgeZ = TRUE,
+                           dir = "cluster", smFISH = "lower")
+
+# discard Xist 
+idx = setdiff(1:dim(sce)[1], which(rownames(sce) %in% c("Xist")) )
+sce = sce[idx,]
+  
+# load scRNA-seq atlas
+load_data_atlas(rownames_ensembl = F)
+sce.atlas = scater::normalize(sce.atlas)
+adjust_atlas_to_seq(sce.atlas, meta.atlas, sce)
+
+# get the same order of rows for sce and sce.atlas
+sce = sce[order(rownames(sce)),]
+sce.atlas = sce.atlas[order(rownames(sce.atlas)),]
+
+# get relevant assays for seq and atlas
+counts.atlas = as.matrix( assay(sce.atlas, "logcounts") )
+counts.seq = as.matrix( assay(sce, "logcounts.area") )
+
+# pca and batch correct
+nPC = 50
+unq.embryo = unique(meta$embryo)
+mapping.all = lapply(unq.embryo, function(x){
+  corrected.counts = seqPCAandBatchCorrect(counts.seq[,meta$embryo == x], counts.atlas, meta.atlas, nPC)
+  mapping.embryo = map_KNN(corrected.counts$atlas, corrected.counts$seq, meta.atlas, meta[meta$embryo == x,], k.neigh = 50, mcparam)
+  return(mapping.embryo)
+})
+names(mapping.all) = unq.embryo
+saveRDS(mapping.all, file = paste0( root.dir, "data/8_5/celltyping/pca_lowerFISH.rds"))
+
+```
+
+# Upper smFISH
+
+```{r upper-smFISH, message=FALSE}
+
+library(Matrix)
+library(scran)
+library(BiocParallel)
+library(BiocNeighbors)
+ncores = 6
+mcparam = MulticoreParam(workers = ncores)
+register(mcparam)
+library(igraph)
+library(reshape2)
+library(knitr)
+library(scater)
+library(scales)
+library(biomaRt)
+library(batchelor)
+library(irlba)
+library(cowplot)
+library(batchelor)
+
+root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
+
+# load sce files with counts data; clean from cells with 0 area and total # mRNA < user's threshold 
+load_embryo_8.5(filterNullArea = TRUE, threshTotalRNA = 20, threshTotalGenes = 10, filterBigClumps = TRUE, filterEdgeZ = TRUE,
+                           dir = "cluster", smFISH = "upper")
+
+# discard Xist 
+idx = setdiff(1:dim(sce)[1], which(rownames(sce) %in% c("Xist")) )
+sce = sce[idx,]
+  
+# load scRNA-seq atlas
+load_data_atlas(rownames_ensembl = F)
+sce.atlas = scater::normalize(sce.atlas)
+adjust_atlas_to_seq(sce.atlas, meta.atlas, sce)
+
+# get the same order of rows for sce and sce.atlas
+sce = sce[order(rownames(sce)),]
+sce.atlas = sce.atlas[order(rownames(sce.atlas)),]
+
+# get relevant assays for seq and atlas
+counts.atlas = as.matrix( assay(sce.atlas, "logcounts") )
+counts.seq = as.matrix( assay(sce, "logcounts.area") )
+
+# pca and batch correct
+nPC = 50
+unq.embryo = unique(meta$embryo)
+mapping.all = lapply(unq.embryo, function(x){
+  corrected.counts = seqPCAandBatchCorrect(counts.seq[,meta$embryo == x], counts.atlas, meta.atlas, nPC)
+  mapping.embryo = map_KNN(corrected.counts$atlas, corrected.counts$seq, meta.atlas, meta[meta$embryo == x,], k.neigh = 50, mcparam)
+  return(mapping.embryo)
+})
+names(mapping.all) = unq.embryo
+saveRDS(mapping.all, file = paste0( root.dir, "data/8_5/celltyping/pca_upperFISH.rds"))
+
+```
 
 #Session Info
 ```{r sessinf}
