@@ -39,18 +39,13 @@ ncores = 6
 mcparam = MulticoreParam(workers = ncores)
 register(mcparam)
 
-#root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
 root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
 figures.dir = paste0(root.dir, "figures/stitching/")
 source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
 source(paste0(root.dir, "amScripts_mouseEmbryoFISH/visualization_functions.R"))
 
-# load sce files with counts data; clean from cells with 0 area and total # mRNA < user's threshold 
-#load_embryo_8.5(threshTotalRNA = 0, filterNullArea = T, filterBigClumps = T, dir = "cluster")
-
 # load my mappings
-
-mapping.pca = readRDS(paste0(root.dir, "data/8_5/celltyping/pca.rds"))
+mapping.pca = readRDS(paste0(root.dir, "data/8_5/celltyping/pca_noFISH.rds"))
 mapping.pca = do.call(c, mapping.pca)
 names(mapping.pca) = str_remove(names(mapping.pca) , "embryo1.")
 names(mapping.pca) = str_remove(names(mapping.pca) , "embryo2.")
@@ -94,7 +89,7 @@ estimated.counts.mean = bplapply(mapping.pca, function(x){
 estimated.counts.mean = do.call(cbind, estimated.counts.mean)
 colnames(estimated.counts.mean) = names(mapping.pca)
 rownames(estimated.counts.mean) = rownames(sce.atlas)
-saveRDS(estimated.counts.mean, file = paste0( root.dir, "data/8_5/stitching/pca_K25_mean.rds"))
+saveRDS(estimated.counts.mean, file = paste0( root.dir, "data/8_5/stitching/pca_K10_mean.rds"))
 
 ```
 
