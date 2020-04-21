@@ -46,7 +46,7 @@ counts.stitched = readRDS(paste0(root.dir, "data/8_5/stitching/pca_K10_mean.rds"
 genes = rownames(counts.stitched)
 
 # pull CT
-CT = read.table(paste0( root.dir, "data/8_5/celltyping/CT__freeze__01042020.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
+CT = read.table(paste0( root.dir, "data/8_5/celltyping/CT__freeze__21042020.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
 
 ```
 
@@ -56,9 +56,9 @@ CT = read.table(paste0( root.dir, "data/8_5/celltyping/CT__freeze__01042020.tab"
 
 ```{r get-stitch-seq}
 # 
-# unq.gene = rownames(sce)
-# counts.stitched.seq = counts.stitched[unq.gene,]
-# saveRDS(counts.stitched.seq, file = paste0( root.dir, "data/8_5/stitching/pca_K10_mean__seq.rds"))
+unq.gene = rownames(sce)
+counts.stitched.seq = counts.stitched[unq.gene,]
+saveRDS(counts.stitched.seq, file = paste0( root.dir, "data/8_5/stitching/pca_K10_mean__seq.rds"))
 
 ```
 
@@ -67,11 +67,11 @@ CT = read.table(paste0( root.dir, "data/8_5/celltyping/CT__freeze__01042020.tab"
 
 ```{r get-stitch-markers}
 # 
-# markers = read.table(paste0( root.dir, "data/QC_stitching/CT_markers.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
-# unq.gene = markers$gene
-# 
-# counts.stitched.markers = counts.stitched[unq.gene,]
-# saveRDS(counts.stitched.markers, file = paste0( root.dir, "data/8_5/stitching/pca_K10_mean__markers.rds"))
+markers = read.table(paste0( root.dir, "data/QC_stitching/CT_markers.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
+unq.gene = markers$gene
+
+counts.stitched.markers = counts.stitched[unq.gene,]
+saveRDS(counts.stitched.markers, file = paste0( root.dir, "data/8_5/stitching/pca_K10_mean__markers.rds"))
 
 ```
 
@@ -82,12 +82,12 @@ CT = read.table(paste0( root.dir, "data/8_5/celltyping/CT__freeze__01042020.tab"
 
 ```{r custom-nowotschin}
 # 
-# df = read.table(paste0( root.dir, "data/QC_stitching/Nowotschin_et_al__2019.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
-# unq.gene = unique(df$Gene)
-# unq.gene = intersect(rownames(counts.stitched), unq.gene)
-# counts.stitched.custom = counts.stitched[unq.gene,]
-# saveRDS(counts.stitched.custom, file = paste0( root.dir, "data/8_5/stitching/pca_K10_mean__Nowotschin.rds"))
-# 
+df = read.table(paste0( root.dir, "data/QC_stitching/Nowotschin_et_al__2019.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
+unq.gene = unique(df$Gene)
+unq.gene = intersect(rownames(counts.stitched), unq.gene)
+counts.stitched.custom = counts.stitched[unq.gene,]
+saveRDS(counts.stitched.custom, file = paste0( root.dir, "data/8_5/stitching/pca_K10_mean__Nowotschin.rds"))
+
 
 ```
 
@@ -107,11 +107,11 @@ CT = read.table(paste0( root.dir, "data/8_5/celltyping/CT__freeze__01042020.tab"
 
 ```{r custom-ibarra_sorria}
 # 
-# df = read.table(paste0( root.dir, "data/QC_stitching/Ibarra_Sorria_et_al_2018.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
-# unq.gene = unique(df$Gene)
-# unq.gene = intersect(rownames(counts.stitched), unq.gene)
-# counts.stitched.custom = counts.stitched[unq.gene,]
-# saveRDS(counts.stitched.custom, file = paste0( root.dir, "data/8_5/stitching/pca_K10_mean__Ibarra_Sorria.rds"))
+df = read.table(paste0( root.dir, "data/QC_stitching/Ibarra_Sorria_et_al_2018.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
+unq.gene = unique(df$Gene)
+unq.gene = intersect(rownames(counts.stitched), unq.gene)
+counts.stitched.custom = counts.stitched[unq.gene,]
+saveRDS(counts.stitched.custom, file = paste0( root.dir, "data/8_5/stitching/pca_K10_mean__Ibarra_Sorria.rds"))
 
 ```
 
@@ -121,9 +121,9 @@ CT = read.table(paste0( root.dir, "data/8_5/celltyping/CT__freeze__01042020.tab"
 
 ```{r hvgs-all}
 # 
-# HVGs = getHVGs(counts.stitched, min.mean = 1e-3, gene_df = genes)
-# counts.stitched.hvgs = counts.stitched[HVGs,]
-# saveRDS(counts.stitched.hvgs , file = paste0( root.dir, "data/8_5/stitching/pca_K10_mean__hvgs.rds"))
+HVGs = getHVGs(counts.stitched, min.mean = 1e-3, gene_df = genes)
+counts.stitched.hvgs = counts.stitched[HVGs,]
+saveRDS(counts.stitched.hvgs , file = paste0( root.dir, "data/8_5/stitching/pca_K10_mean__hvgs.rds"))
 
 ```
 
@@ -131,10 +131,10 @@ CT = read.table(paste0( root.dir, "data/8_5/celltyping/CT__freeze__01042020.tab"
 
 ```{r hvgs-brain-spinal}
 # 
-# idx = which( CT$CT %in% c("Forebrain/Midbrain/Hindbrain", "Spinal cord") )
-# HVGs = getHVGs(counts.stitched[,CT$uniqueID[idx]], min.mean = 1e-3, gene_df = genes)
-# counts.stitched.hvgs = counts.stitched[HVGs,]
-# saveRDS(counts.stitched.hvgs , file = paste0( root.dir, "data/8_5/stitching/pca_K10_mean__brain_spinalCord.rds"))
+idx = which( CT$CT %in% c("Forebrain/Midbrain/Hindbrain", "Spinal cord") )
+HVGs = getHVGs(counts.stitched[,CT$uniqueID[idx]], min.mean = 1e-3, gene_df = genes)
+counts.stitched.hvgs = counts.stitched[HVGs,]
+saveRDS(counts.stitched.hvgs , file = paste0( root.dir, "data/8_5/stitching/pca_K10_mean__brain_spinalCord.rds"))
 
 ```
 
