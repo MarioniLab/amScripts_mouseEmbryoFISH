@@ -37,7 +37,8 @@ root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
 source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
 
 # load sce files with counts data; clean from cells with 0 area and total # mRNA < user's threshold 
-load_embryo_8.5(threshTotalRNA = 0, filterNullArea = T, filterBigClumps = T, dir = "cluster")
+load_embryo_8.5(filterNullArea = TRUE, threshTotalRNA = 20, threshTotalGenes = 10, filterBigClumps = TRUE, filterEdgeZ = TRUE,
+                           dir = "cluster", smFISH = "none")
 meta.seq = data.frame(meta)
 counts.seq = assay(sce, "logcounts.area")
 
