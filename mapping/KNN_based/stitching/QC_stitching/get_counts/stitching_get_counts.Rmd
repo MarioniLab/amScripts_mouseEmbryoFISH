@@ -157,7 +157,7 @@ saveRDS(counts.stitched.hvgs , file = paste0( root.dir, "data/8_5/stitching/pca_
 
 ## Gut
 
-```{r hvgs-gut-endoderm}
+```{r hvgs-gut}
 # 
 idx = which( CT$CT %in% c("Gut") )
 HVGs = getHVGs(counts.stitched[,CT$uniqueID[idx]], min.mean = 1e-3, gene_df = genes)
