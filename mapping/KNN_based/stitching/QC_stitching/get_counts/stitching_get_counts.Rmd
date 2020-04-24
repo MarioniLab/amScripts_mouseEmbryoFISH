@@ -72,7 +72,7 @@ saveRDS(counts.stitched.seq, file = paste0( root.dir, "data/8_5/stitching/pca_K1
 # smFISH genes
 
 
-```{r get-stitch-seq}
+```{r get-stitch-sm}
 # 
 counts.stitched.sm = counts.stitched[genes.sm,]
 saveRDS(counts.stitched.sm, file = paste0( root.dir, "data/8_5/stitching/pca_K10_mean__sm.rds"))
