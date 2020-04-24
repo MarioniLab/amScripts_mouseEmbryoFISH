@@ -9,7 +9,7 @@ script_name=get_counts
 
 #CHOOSE PARAMETERS
 #RAM in megabytes
-memory=100000
+memory=90000
 r_command="rusage[mem=${memory}]"
 #num_processors
 nproc=1
