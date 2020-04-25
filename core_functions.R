@@ -1,5 +1,5 @@
 # load embryo 8.5 data
-load_embryo_8.5 = function(filterNullArea = TRUE, threshTotalRNA, threshTotalGenes, filterBigClumps = TRUE, filterEdgeZ = FALSE,
+load_embryo_8.5 = function(filterNullArea = TRUE, threshTotalRNA = 10, threshTotalGenes = 5, filterBigClumps = TRUE, zToKeep = c(2,5),
                            dir = "local", smFISH = "none"){
   
   require(SingleCellExperiment)
@@ -57,14 +57,12 @@ load_embryo_8.5 = function(filterNullArea = TRUE, threshTotalRNA, threshTotalGen
     sce = sce[,idx]
   }
   
-  # filter out edge z-stacks
-  if (filterEdgeZ) {
-    idx = meta$z %in% c(2:5)
-    print( paste0( "Discarded ", sum(!meta$z %in% c(2:5)), " from edge z-stacks (out of ", 
-                   dim(meta)[1], "): ", round( mean(!meta$z %in% c(2:5))*100, 2), "%" ))
-    meta = meta[idx, ]
-    sce = sce[, idx]
-  }
+  # keep z-stacks we want
+  idx = meta$z %in% zToKeep
+  print( paste0( "Discarded ", sum(!meta$z %in% zToKeep), " from not relevant z-stacks (out of ", 
+                 dim(meta)[1], "): ", round( mean(!meta$z %in% zToKeep)*100, 2), "%" ))
+  meta = meta[idx, ]
+  sce = sce[, idx]
   
   # filter out cells with low number of mRNA molecules
   idx = meta$libsize > threshTotalRNA
@@ -96,6 +94,11 @@ getNumGenes = function(sce){
 }
 
 
+
+
+
+
+
 # filter empty cells (for the reduced gene subset)
 filterEmptyCells = function(sce, meta){
   counts = counts(sce)
@@ -111,7 +114,6 @@ filterEmptyCells = function(sce, meta){
 }
 
 adjust_atlas_to_seq = function(sce.atlas, meta.atlas, sce.seq){
-  
   # get rid of doublets and stripped - we don't want to map to them
   idx = meta.atlas$doublet == F & meta.atlas$stripped == F
   meta.atlas = meta.atlas[idx,]
@@ -242,7 +244,7 @@ addCTregressedLogcounts = function(sce, assay.type, meta){
 
 
 load_data_atlas = function(normalise = TRUE, remove_doublets = FALSE, remove_stripped = FALSE, 
-                           load_corrected = FALSE, rownames_ensembl = TRUE){
+                           load_corrected = FALSE, rownames_ensembl = TRUE, stages = c("E8.25", "E8.5") ){
   if(load_corrected & (!remove_doublets | !remove_stripped)){
     message("Using corrected PCs, also removing doublets + stripped now.")
     remove_doublets = TRUE
@@ -254,7 +256,6 @@ load_data_atlas = function(normalise = TRUE, remove_doublets = FALSE, remove_str
   require(Matrix)
   
   root.dir = "/nfs/research1/marioni/jonny/embryos/data/"
-  #root.dir = "/Users/alsu/Develop/FetalAlcoholSyndrome/atlas_Jonny/data/"
   counts = readRDS(paste0( root.dir, "raw_counts.rds"))
   genes = read.table(paste0( root.dir, "genes.tsv"), stringsAsFactors = F)
   meta = read.table(paste0( root.dir, "meta.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
@@ -285,6 +286,12 @@ load_data_atlas = function(normalise = TRUE, remove_doublets = FALSE, remove_str
     corrected = readRDS(paste0(root.dir, "corrected_pcas.rds"))
     assign("corrected", corrected, envir = .GlobalEnv)
   }
+  # only keep relevant stages
+  idx = meta$stage %in% stages
+  meta = meta[idx,]
+  sce = sce[, idx]
+  sfs = sfs[idx]
+  
   assign("genes.atlas", genes, envir = .GlobalEnv)
   assign("meta.atlas", meta, envir = .GlobalEnv)
   assign("sce.atlas", sce, envir = .GlobalEnv)
