@@ -9,10 +9,10 @@ script_name=pca
 
 #CHOOSE PARAMETERS
 #RAM in megabytes
-memory=150000
+memory=100000
 r_command="rusage[mem=${memory}]"
 #num_processors
-nproc=4
+nproc=3
 
 smg=/nfs/research1/marioni/alsu/singularity/R1.simg
 script=/nfs/research1/marioni/alsu/spatial/mouse_embryo/amScripts_mouseEmbryoFISH/mapping/run_rmd.R
