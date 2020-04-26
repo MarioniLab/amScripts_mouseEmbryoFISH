@@ -61,6 +61,7 @@ cells = lapply(mapping, function(x){
   current.cells = x$cells.mapped
   return(current.cells[1:K])
 })
+cells = do.call( rbind, cells )
 unq.cells = unique(cells)
 unq.cells = unq.cells[order(unq.cells)]
 
