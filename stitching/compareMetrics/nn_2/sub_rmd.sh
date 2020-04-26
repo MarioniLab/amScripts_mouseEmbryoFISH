@@ -9,7 +9,7 @@ script_name=nn_2
 
 #CHOOSE PARAMETERS
 #RAM in megabytes
-memory=180000
+memory=90000
 r_command="rusage[mem=${memory}]"
 #num_processors
 nproc=3
