@@ -30,53 +30,30 @@ library(biomaRt)
 
 root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
 source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
-source(paste0(root.dir, "amScripts_mouseEmbryoFISH/visualization_functions.R"))
-
-# load sce files with counts data; clean from cells with 0 area and total # mRNA < user's threshold 
-#load_embryo_8.5(threshTotalRNA = 0, filterNullArea = T, filterBigClumps = T, dir = "cluster")
 
 # load scRNA-seq atlas
 load_data_atlas(rownames_ensembl = F)
 meta.atlas$celltype[meta.atlas$doublet] = "Doublet"
 meta.atlas$celltype[meta.atlas$stripped] = "Stripped"
 
+# discard doublets and stripped for the atlas - we don't want to map to them
+idx = !meta.atlas$celltype %in% c("Doublet", "Stripped")
+meta.atlas = meta.atlas[idx,]
+sce.atlas = sce.atlas[,idx]
+sfs.atlas = sfs.atlas[idx]
 
-# save gene names
-write.table(rownames(sce.atlas), quote = F, col.names = F, row.names = F, file = paste0(root.dir, "data/all_genes.tab") )
-# # discard doublets and stripped for the atlas - we don't want to map to them
-# idx = !meta.atlas$celltype %in% c("Doublet", "Stripped")
-# meta.atlas = meta.atlas[idx,]
-# sce.atlas = sce.atlas[,idx]
-# sfs.atlas = sfs.atlas[idx]
-# 
-# # keep only those genes that are in seqFISH
-# idx = rownames(sce.atlas) %in% rownames(sce)
-# sce.atlas = sce.atlas[idx,]
-# 
-# # keep only 500 cells per CT 
-# N.sample = 500
-# celltypes = unique(meta.atlas$celltype)
-# celltypes = celltypes[!is.na(celltypes)]
-# idx = sapply(celltypes, function(x){
-#   idx.CT = which(meta.atlas$celltype == x)
-#   if (length(idx.CT) > N.sample) {
-#     return(sample(idx.CT, N.sample))
-#   } else {
-#     return(idx.CT)
-#   }
-# })
-# idx = unlist(idx)
-# meta.atlas = meta.atlas[idx,]
-# sce.atlas = sce.atlas[,idx]
-# sfs.atlas = sfs.atlas[idx]
-# 
-# # save reduced sce.atlas, meta.atlas, sfs.atlas and genes
-# saveRDS( sce.atlas, paste0(root.dir, "data/reducedAtlas/sce.rds"))
-# saveRDS( counts( sce.atlas ), paste0(root.dir, "data/reducedAtlas/counts.rds"))
-# write.table(sfs.atlas, quote = F, col.names = F, row.names = F, file = paste0(root.dir, "data/reducedAtlas/sizeFactors.tab") )
-# write.table(meta.atlas, quote = F, col.names = T, row.names = F, file = paste0(root.dir, "data/reducedAtlas/meta.tab") )
-# write.table(rownames(sce.atlas), quote = F, col.names = F, row.names = F, file = paste0(root.dir, "data/reducedAtlas/genes.tab") )
-# 
+# only keep E8.5 and E8.25
+idx = meta.atlas$stage %in% c("E8.25", "E8.5")
+meta.atlas = meta.atlas[idx,]
+sce.atlas = sce.atlas[,idx]
+sfs.atlas = sfs.atlas[idx]
+
+# save reduced sce.atlas, meta.atlas, sfs.atlas and genes
+saveRDS( sce.atlas, paste0(root.dir, "data/reducedAtlas/sce.rds"))
+saveRDS( counts( sce.atlas ), paste0(root.dir, "data/reducedAtlas/counts.rds"))
+write.table(sfs.atlas, quote = F, col.names = F, row.names = F, file = paste0(root.dir, "data/reducedAtlas/sizeFactors.tab") )
+write.table(meta.atlas, quote = F, col.names = T, row.names = F, file = paste0(root.dir, "data/reducedAtlas/meta.tab") )
+write.table(rownames(sce.atlas), quote = F, col.names = F, row.names = F, file = paste0(root.dir, "data/reducedAtlas/genes.tab") )
 
 ```
 
