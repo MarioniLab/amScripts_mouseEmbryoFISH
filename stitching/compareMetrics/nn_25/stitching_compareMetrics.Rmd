@@ -105,7 +105,7 @@ estimated.counts = bplapply(mapping, function(x){
 }, BPPARAM = mcparam) 
 estimated.counts = do.call(cbind, estimated.counts)
 colnames(estimated.counts) = names(mapping)
-rownames(estimated.counts) = rownames(sce.atlas)
+rownames(estimated.counts) = rownames(counts.atlas)
 saveRDS(estimated.counts, file =  paste0( root.dir, "data/8_5/stitching/compareMetrics/nn_", K, "__mean.rds"))
 
 ```
@@ -126,7 +126,7 @@ estimated.counts = bplapply(mapping, function(x){
 }, BPPARAM = mcparam) 
 estimated.counts = do.call(cbind, estimated.counts)
 colnames(estimated.counts) = names(mapping)
-rownames(estimated.counts) = rownames(sce.atlas)
+rownames(estimated.counts) = rownames(counts.atlas)
 saveRDS(estimated.counts, file = paste0( root.dir, "data/8_5/stitching/compareMetrics/nn_", K, "__median.rds"))
 
 ```
@@ -147,7 +147,7 @@ estimated.counts = bplapply(mapping, function(x){
 }, BPPARAM = mcparam) 
 estimated.counts = do.call(cbind, estimated.counts)
 colnames(estimated.counts) = names(mapping)
-rownames(estimated.counts) = rownames(sce.atlas)
+rownames(estimated.counts) = rownames(counts.atlas)
 saveRDS(estimated.counts, file =  paste0( root.dir, "data/8_5/stitching/compareMetrics/nn_", K, "__min.rds"))
 
 ```
@@ -168,7 +168,7 @@ estimated.counts = bplapply(mapping, function(x){
 }, BPPARAM = mcparam) 
 estimated.counts = do.call(cbind, estimated.counts)
 colnames(estimated.counts) = names(mapping)
-rownames(estimated.counts) = rownames(sce.atlas)
+rownames(estimated.counts) = rownames(counts.atlas)
 saveRDS(estimated.counts, file =  paste0( root.dir, "data/8_5/stitching/compareMetrics/nn_", K, "__max.rds"))
 
 ```
@@ -189,7 +189,7 @@ estimated.counts = bplapply(mapping, function(x){
 }, BPPARAM = mcparam) 
 estimated.counts = do.call(cbind, estimated.counts)
 colnames(estimated.counts) = names(mapping)
-rownames(estimated.counts) = rownames(sce.atlas)
+rownames(estimated.counts) = rownames(counts.atlas)
 saveRDS(estimated.counts, file =  paste0( root.dir, "data/8_5/stitching/compareMetrics/nn_", K, "__q25.rds"))
 
 ```
@@ -210,7 +210,7 @@ estimated.counts = bplapply(mapping, function(x){
 }, BPPARAM = mcparam) 
 estimated.counts = do.call(cbind, estimated.counts)
 colnames(estimated.counts) = names(mapping)
-rownames(estimated.counts) = rownames(sce.atlas)
+rownames(estimated.counts) = rownames(counts.atlas)
 saveRDS(estimated.counts, file =  paste0( root.dir, "data/8_5/stitching/compareMetrics/nn_", K, "__q75.rds"))
 
 ```
