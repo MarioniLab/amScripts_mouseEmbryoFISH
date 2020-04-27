@@ -98,7 +98,7 @@ getCounts = function(cells){
   return(current.counts)
 }
 estimated.counts = bplapply(mapping, function(x){
-  cells = x$cells.mapped
+  cells = x$cells.mapped[1]
   return(getCounts(cells)) 
 }, BPPARAM = mcparam) 
 estimated.counts = do.call(cbind, estimated.counts)
