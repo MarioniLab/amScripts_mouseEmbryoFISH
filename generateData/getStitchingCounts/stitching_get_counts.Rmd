@@ -1,0 +1,126 @@
+---
+title: "Assessment of the  stitching quality: seqFISH genes"
+output:
+  BiocStyle::html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes  
+  html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: true
+    theme: united
+---
+
+
+# Load dependencies and source data
+
+```{r load_data, message=FALSE}
+
+library(Matrix)
+library(scran)
+library(igraph)
+library(reshape2)
+library(knitr)
+library(scater)
+library(scales)
+library(biomaRt)
+library(tibble)
+library(tidyverse)
+library(viridis)
+
+ncores = 1
+
+#root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
+root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
+
+anno = read.table(paste0( root.dir, "data/8_5/geneInfo/stat.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
+CT = read.table(paste0( root.dir, "data/8_5/celltyping/CT__freeze__21042020.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
+
+# load stitching
+counts.stitched = readRDS(paste0(root.dir, "data/8_5/stitching/pca_K10_mean.rds"))
+
+```
+
+
+# Seq-FISH genes
+
+
+```{r get-stitch-seq}
+
+counts.stitched.seq = counts.stitched[rownames(counts.stitched) %in% anno$external_gene_name[anno$experiment == "seq"],]
+saveRDS(counts.stitched.seq, file = paste0( root.dir, "data/8_5/stitching/pca_K10_mean__seq.rds"))
+
+```
+
+# smFISH genes
+
+
+```{r get-stitch-sm}
+
+counts.stitched.sm = counts.stitched[rownames(counts.stitched) %in% anno$external_gene_name[anno$experiment == "sm"],]
+saveRDS(counts.stitched.sm, file = paste0( root.dir, "data/8_5/stitching/pca_K10_mean__sm.rds"))
+
+```
+
+
+# Custom datasets
+
+## Nowotschin et al., 2019
+
+```{r custom-nowotschin}
+
+df = read.table(paste0( root.dir, "data/QC_stitching/Nowotschin_et_al__2019.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
+unq.gene = intersect(rownames(counts.stitched), unique(df$Gene))
+counts.stitched.custom = counts.stitched[unq.gene,]
+saveRDS(counts.stitched.custom, file = paste0( root.dir, "data/8_5/stitching/custom/pca_K10_mean__Nowotschin.rds"))
+
+
+```
+
+
+## Ibarra-Sorria et al., 2018
+
+```{r custom-ibarra_sorria}
+
+df = read.table(paste0( root.dir, "data/QC_stitching/Ibarra_Sorria_et_al_2018.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
+unq.gene = intersect(rownames(counts.stitched), unique(df$Gene))
+counts.stitched.custom = counts.stitched[unq.gene,]
+saveRDS(counts.stitched.custom, file = paste0( root.dir, "data/8_5/stitching/custom/pca_K10_mean__Ibarra_Sorria.rds"))
+
+```
+
+# HVGs
+
+## All 
+
+```{r hvgs-all}
+
+HVGs = getHVGs(counts.stitched, min.mean = 1e-3, gene_df = genes)
+counts.stitched.hvgs = counts.stitched[HVGs,]
+saveRDS(counts.stitched.hvgs , file = paste0( root.dir, "data/8_5/stitching/pca_K10_mean__hvgs.rds"))
+
+```
+
+## per CT
+
+```{r hvgs-brain-spinal}
+
+for (i in unique(CT$CT)){
+  idx = which( CT$CT == i )
+  HVGs = getHVGs(counts.stitched[,CT$uniqueID[idx]], min.mean = 1e-3, gene_df = genes)
+  counts.stitched.hvgs = counts.stitched[HVGs,]
+  saveRDS(counts.stitched.hvgs , file = paste0( root.dir, "data/8_5/stitching/CT/pca_K10_mean__hvgs__", i , ".rds"))
+}
+
+```
+
+
+#Session Info
+
+```{r sessinf}
+sessionInfo()
+```
