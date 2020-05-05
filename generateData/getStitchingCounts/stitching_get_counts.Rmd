@@ -43,6 +43,8 @@ CT = read.table(paste0( root.dir, "data/8_5/celltyping/CT__freeze__21042020.tab"
 # load stitching
 counts.stitched = readRDS(paste0(root.dir, "data/8_5/stitching/pca_K10_mean.rds"))
 
+
+
 ```
 
 
@@ -111,7 +113,7 @@ saveRDS(counts.stitched.hvgs , file = paste0( root.dir, "data/8_5/stitching/pca_
 
 for (i in unique(CT$CT)){
   idx = which( CT$CT == i )
-  HVGs = getHVGs(counts.stitched[,CT$uniqueID[idx]], min.mean = 1e-3, gene_df = genes)
+  HVGs = getHVGs(counts.stitched[, colnames(counts.stitched) %in% CT$uniqueID[idx]], min.mean = 1e-3, gene_df = genes)
   counts.stitched.hvgs = counts.stitched[HVGs,]
   saveRDS(counts.stitched.hvgs , file = paste0( root.dir, "data/8_5/stitching/CT/pca_K10_mean__hvgs__", i , ".rds"))
 }
