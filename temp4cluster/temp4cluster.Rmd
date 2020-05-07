@@ -54,13 +54,13 @@ idx = meta$embryo %in% c("embryo1", "embryo2")
 meta = meta[idx,]
 counts.seq = counts.seq[,idx]
 
-counts.stitched = readRDS(paste0( root.dir, "data/8_5/CT/stitching/pca_K10_mean__hvgs__Pharyngeal mesoderm.rds") )
+counts.stitched = readRDS(paste0( root.dir, "data/8_5/stitching/CT/pca_K10_mean__hvgs__Pharyngeal mesoderm.rds") )
 
 
 id = intersect( colnames(counts.stitched) , colnames(counts.seq) )
 counts.stitched = counts.stitched[,colnames(counts.stitched) %in% id]
 
-saveRDS(counts.stitched, file = paste0( root.dir, "data/8_5/CT/stitching/pca_K10_mean__hvgs__Pharyngeal mesoderm__reduced.rds"))
+saveRDS(counts.stitched, file = paste0( root.dir, "data/8_5/stitching/CT/pca_K10_mean__hvgs__Pharyngeal mesoderm__reduced.rds"))
 
 
 ```
