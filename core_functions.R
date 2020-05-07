@@ -1,6 +1,6 @@
 # load embryo 8.5 data
-load_embryo_8.5 = function(filterNullArea = TRUE, threshTotalRNA = 10, threshTotalGenes = 5, filterBigClumps = TRUE, zToKeep = c(2,5),
-                           dir = "local", smFISH = "none"){
+load_embryo_8.5 = function(threshTotalRNA = 10, threshTotalGenes = 5, filterBigClumps = TRUE, zToKeep = c(2,5),
+                           dir = "local", version = "old"){
   
   require(SingleCellExperiment)
   require(scater)
@@ -11,14 +11,13 @@ load_embryo_8.5 = function(filterNullArea = TRUE, threshTotalRNA = 10, threshTot
     data.dir = "/Users/alsu/Develop/spatial/mouse_embryo/data/8_5/source/"
   }
   
-  if (smFISH == "none"){
+  if (version == "old"){
     sce = readRDS( paste0( data.dir , "sce_all.Rds"))
-  } else if (smFISH == "lower"){
-    sce = readRDS( paste0( data.dir , "smFISH_counts_lower.Rds"))
-  } else if (smFISH == "upper"){
-    sce = readRDS( paste0( data.dir , "smFISH_counts_upper.Rds"))
-  }
+  } else if (version == "old_filtered"){
+    sce = readRDS( paste0( data.dir , "E8.5_sce_filt.Rds"))
+  } 
   meta = colData(sce)
+  meta = data.frame(meta)
   
   # rename Cavin3 --> Prkcdbp
   rownames.sce = rownames(sce)
@@ -35,14 +34,6 @@ load_embryo_8.5 = function(filterNullArea = TRUE, threshTotalRNA = 10, threshTot
   assay(sce, "logcounts.libsize") <- log2(t(t(counts)/sizeFactors.libsize) + 1)
   assay(sce, "logcounts.area") <- log2(t(t(counts)/sizeFactors.area) + 1)
   
-  # filter cells with NULL area
-  if (filterNullArea) {
-    idx = meta$Area > 0
-    print( paste0( "Discarded ", sum(meta$Area == 0), " null area cells (out of ", 
-                   dim(meta)[1], "): ", round( mean(meta$Area == 0)*100, 2), "%" ))
-    meta = meta[idx, ]
-    sce = sce[, idx]
-  }
   
   # filter big clumps (too big of the area)
   if (filterBigClumps){
@@ -94,25 +85,6 @@ getNumGenes = function(sce){
 }
 
 
-
-
-
-
-
-# filter empty cells (for the reduced gene subset)
-filterEmptyCells = function(sce, meta){
-  counts = counts(sce)
-  reduced.libsize = colSums( counts )
-  idx = reduced.libsize > 0
-  meta = meta[idx,]
-  sce = sce[,idx]
-  
-  assign("sce", sce, envir = .GlobalEnv)
-  assign("meta", meta, envir = .GlobalEnv)
-  
-  invisible(0)
-}
-
 adjust_atlas_to_seq = function(sce.atlas, meta.atlas, sce.seq){
   # get rid of doublets and stripped - we don't want to map to them
   idx = meta.atlas$doublet == F & meta.atlas$stripped == F
@@ -127,51 +99,10 @@ adjust_atlas_to_seq = function(sce.atlas, meta.atlas, sce.seq){
   invisible(0)
 }
 
-reduceAtlas = function(sce.atlas, meta.atlas, thresh){
-  celltypes = unique(meta.atlas$celltype)
-  celltypes = celltypes[!is.na(celltypes)]
-  idx = sapply(celltypes, function(x){
-    idx.CT = which(meta.atlas$celltype == x)
-    if (length(idx.CT) > thresh) {
-      return(sample(idx.CT, thresh))
-    } else {
-      return(idx.CT)
-    }
-  })
-  idx = unlist(idx)
-  meta.atlas = meta.atlas[idx,]
-  sce.atlas = sce.atlas[,idx]
-  
-  assign("sce.atlas", sce.atlas, envir = .GlobalEnv)
-  assign("meta.atlas", meta.atlas, envir = .GlobalEnv)
-  invisible(0)
-}
-
-seqBatchCorrect = function(counts.seq, counts.atlas, meta.atlas){
-  require(batchelor)
-  set.seed(42)
-  unq.samples = unique(meta.atlas$sample)
-  counts.seq = t(cosineNorm(counts.seq))
-  counts.atlas.bySamples = lapply(unq.samples, function(x){
-    out = counts.atlas[,meta.atlas$sample == x]
-    return(t(cosineNorm(out)))
-  })
-  # batch correct atlas
-  atlas.corrected = do.call(reducedMNN, c(counts.atlas.bySamples))
-  atlas.corrected = atlas.corrected$corrected
-  # correction for corrected atlas + seq
-  joint.corrected = reducedMNN(atlas.corrected, counts.seq)
-  joint.corrected = joint.corrected$corrected
-  
-  atlas = 1:nrow(atlas.corrected)
-  out = list("atlas" = joint.corrected[atlas,], "seq" = joint.corrected[-atlas,])
-  return(out)
-}
-
 seqPCAandBatchCorrect = function(counts.seq, counts.atlas, meta.atlas, nPC){
   require(irlba)
   require(batchelor)
-  set.seed(42)
+  set.seed(2020)
   unq.samples = unique(meta.atlas$sample)
   counts.seq = cosineNorm(counts.seq)
   counts.atlas = cosineNorm(counts.atlas)
