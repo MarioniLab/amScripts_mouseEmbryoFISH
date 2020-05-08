@@ -121,6 +121,8 @@ markers.mtrx = lapply(unq.CT, function(x1){
       # get corr stat
       corr.stat = lapply(unique(current.meta$embryo), function(x){
         corr.stat.embryo = data.frame(Gene = rownames(current.counts))
+        corr.stat.embryo$Gene = factor(corr.stat.embryo$Gene)
+        
         corr.stat.embryo$corr <- NA
         corr.stat.embryo$P <- NA
         idx =  current.meta$embryo == x
@@ -197,6 +199,7 @@ markers.mtrx = lapply(unq.CT, function(x1){
       # get corr stat
       corr.stat = lapply(unique(current.meta$embryo), function(x){
         corr.stat.embryo = data.frame(Gene = rownames(current.counts))
+        corr.stat.embryo$Gene = factor(corr.stat.embryo$Gene)
         corr.stat.embryo$corr <- NA
         corr.stat.embryo$P <- NA
         idx =  current.meta$embryo == x
