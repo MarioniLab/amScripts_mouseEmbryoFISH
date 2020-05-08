@@ -1,5 +1,5 @@
 ---
-title: "Mesenchyme analysis."
+title: "Small one-time runs for the cluster."
 author: "Alsu Missarova"
 output:
   BiocStyle::html_document:
@@ -15,15 +15,7 @@ output:
     theme: united
 ---
 
-**This script is dedicated to understand in greater detailes what kind of cells are assigned to Mesenchyme cell type (mesodermal class). It contains the analysis of unsupervised clustering + marker detection. Additionally, it touches the relationship of the celltype with heart which seems to be the case (visual asssesement of spatial positioning between the 2 cell types).**
 
-*Note #1 (IMPORTANT): there is currently inconsistency between seq-counts and stitched data (performed on different mappings and different filtering criteria for cells were used). Take marker detection with a grain of salt - might change after mapping and stitching are re-done.*
-
-*Note #2: Marker detection was perfomed using only HVGs in Mesenchyme -- discuss with John whether it is a relevant approach.*
-
-*Note #3: Unsupervised clustering is performed on 2 embryos combined -- discuss with John whether it is a relevant approach.*
-
-**Load dependencies and source data.**
 
 ```{r load_data, message=FALSE}
 
@@ -40,27 +32,9 @@ library(RColorBrewer)
 library(tibble)
 library(ggplot2)
 library(tidyverse)
+library(irlba)
+library(Hmisc)
 
-root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
-source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
-set.seed(32)
-
-# load sce files with counts data; clean from cells with 0 area and total # mRNA < user's threshold 
-load_embryo_8.5(version = "old_filtered", dir = "cluster")
-counts.seq = assay(sce, "logcounts.area")
-
-# only work with embryo1 and embryo2 and mesenchyme
-idx = meta$embryo %in% c("embryo1", "embryo2") 
-meta = meta[idx,]
-counts.seq = counts.seq[,idx]
-
-counts.stitched = readRDS(paste0( root.dir, "data/8_5/stitching/CT/pca_K10_mean__hvgs__Pharyngeal mesoderm.rds") )
-
-
-id = intersect( colnames(counts.stitched) , colnames(counts.seq) )
-counts.stitched = counts.stitched[,colnames(counts.stitched) %in% id]
-
-saveRDS(counts.stitched, file = paste0( root.dir, "data/8_5/stitching/CT/pca_K10_mean__hvgs__Pharyngeal mesoderm__reduced.rds"))
 
 
 ```
