@@ -47,6 +47,7 @@ set.seed(32)
 
 # load sce files with counts data; clean from cells with 0 area and total # mRNA < user's threshold 
 load_embryo_8.5(version = "old_filtered", dir = "cluster")
+#load_embryo_8.5(version = "old_filtered")
 counts.seq = assay(sce, "logcounts.area")
 
 # only work with embryo1 and embryo2 and mesenchyme
@@ -57,7 +58,7 @@ counts.seq = counts.seq[,idx]
 # load stitching 
 #counts.stitched = readRDS(paste0( root.dir, "data/8_5/stitching/pca_K10_mean.rds") )
 
-counts.stitched = readRDS(paste0( root.dir, "data/8_5/stitching/pca_K10_mean__HVGs.rds") )
+counts.stitched = readRDS(paste0( root.dir, "data/8_5/stitching/pca_K10_mean__hvgs.rds") )
 
 rownames.counts.stitched = rownames(counts.stitched)
 rownames.counts.stitched = rownames.counts.stitched[!is.na(rownames.counts.stitched)]
