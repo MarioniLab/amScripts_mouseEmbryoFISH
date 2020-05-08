@@ -36,20 +36,23 @@ library(irlba)
 library(Hmisc)
 
 
-root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
 #root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
+root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
 source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
+
+anno = read.table(paste0( root.dir, "data/8_5/geneInfo/stat.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
+CT = read.table(paste0( root.dir, "data/8_5/celltyping/CT__freeze__21042020.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
 
 # load stitching
 counts.stitched = readRDS(paste0(root.dir, "data/8_5/stitching/pca_K10_mean.rds"))
-genes.sum = apply(counts.stitched , 1 , sum)
-genes.na = sapply(1:nrow(counts.stitched), function(x){
-  current.counts = counts.stitched[x,]
-  return(sum(is.na(current.counts)))
-})
 
-df = data.frame(gene = rownames(counts.stitched), sum.gene = genes.sum, n.na = genes.na)
-write.table(df, file = paste0(root.dir, "data/stat_stitched.tab"), row.names = F, col.names = T, sep = "\t") 
+genes.to.check = c("4930556M19Rik","A230057D06Rik","Adat3","Btbd8","Ccl27a","D130017N08Rik","Dancr","Dohh","Gm15853","Gm16381","Gm16701","Gm2464","Gm2696","Gm3055","Itgam","Jakmip1","Map2k7","Nudt8","Olfr912","Pcdha11","Raver1","Rnf26","Sept2","Spata22","Srp54a","St6galnac2","Sumo3","U2af1l4","Zfp935")
+# load stitching
+counts.stitched = readRDS(paste0(root.dir, "data/8_5/stitching/pca_K10_mean.rds"))
+counts.stitched.dubious = counts.stitched[rownames(counts.stitched) %in% genes.to.check,]
+saveRDS(counts.stitched.dubious, file = paste0( root.dir, "data/8_5/stitching/pca_K10_mean__toCheck.rds"))
+
+
 
 ```
 
