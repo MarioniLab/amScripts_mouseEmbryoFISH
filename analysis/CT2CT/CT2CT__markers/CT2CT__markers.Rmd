@@ -57,8 +57,8 @@ counts.seq = counts.seq[,idx]
 
 # load stitching 
 #counts.stitched = readRDS(paste0( root.dir, "data/8_5/stitching/pca_K10_mean.rds") )
-counts.stitched = readRDS(paste0( root.dir, "data/8_5/stitching/pca_K10_mean__nonZero.rds") )
-#counts.hvgs = readRDS(paste0( root.dir, "data/8_5/stitching/pca_K10_mean__hvgs.rds") )
+#counts.stitched = readRDS(paste0( root.dir, "data/8_5/stitching/pca_K10_mean__nonZero.rds") )
+counts.stitched = readRDS(paste0( root.dir, "data/8_5/stitching/pca_K10_mean__hvgs.rds") )
 #counts.nonzero = readRDS(paste0( root.dir, "data/8_5/stitching/pca_K10_mean__nonZero.rds") )
 
 
