@@ -9,7 +9,7 @@ script_name=temp
 
 #CHOOSE PARAMETERS
 #RAM in megabytes
-memory=70000
+memory=100000
 r_command="rusage[mem=${memory}]"
 #num_processors
 nproc=1

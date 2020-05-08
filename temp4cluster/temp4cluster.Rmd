@@ -37,6 +37,7 @@ library(Hmisc)
 
 
 root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
+#root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
 source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
 
 # load stitching
