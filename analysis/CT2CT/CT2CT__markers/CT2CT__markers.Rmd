@@ -125,7 +125,8 @@ markers.mtrx = lapply(unq.CT, function(x1){
         
         for (i in 1:nrow(corr.stat.embryo)){
           counts.gene = current.counts.oneEmbryo[rownames(current.counts.oneEmbryo) == corr.stat.embryo$Gene[i], ]
-          counts.gene = data.frame(uniqueID = names(counts.gene), counts = counts.gene)
+          uniqueID = colnames(current.counts.oneEmbryo)
+          counts.gene = data.frame(uniqueID = uniqueID, counts = counts.gene)
           current.meta.gene = merge(current.meta.oneEmbryo, counts.gene)
           current.corr = rcorr(current.meta.gene$short.dist, current.meta.gene$counts, type = "pearson")
           corr.stat.embryo$corr[i] = current.corr$r[1,2]
