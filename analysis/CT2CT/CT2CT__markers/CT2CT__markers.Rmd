@@ -40,8 +40,8 @@ library(ggpubr)
 library(viridis)
 library(Hmisc)
 
-#root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
-root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
+root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
+#root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
 source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
 set.seed(32)
 
@@ -55,9 +55,9 @@ meta = meta[idx,]
 counts.seq = counts.seq[,idx]
 
 # load stitching 
-counts.stitched = readRDS(paste0( root.dir, "data/8_5/stitching/pca_K10_mean.rds") )
+#counts.stitched = readRDS(paste0( root.dir, "data/8_5/stitching/pca_K10_mean.rds") )
 
-#counts.stitched = readRDS(paste0( root.dir, "data/8_5/stitching/pca_K10_mean__HVGs.rds") )
+counts.stitched = readRDS(paste0( root.dir, "data/8_5/stitching/pca_K10_mean__HVGs.rds") )
 
 rownames.counts.stitched = rownames(counts.stitched)
 rownames.counts.stitched = rownames.counts.stitched[!is.na(rownames.counts.stitched)]
