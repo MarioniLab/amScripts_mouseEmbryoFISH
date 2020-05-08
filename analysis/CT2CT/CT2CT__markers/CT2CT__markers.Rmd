@@ -56,7 +56,7 @@ counts.seq = counts.seq[,idx]
 # load stitching 
 counts.stitched = readRDS(paste0( root.dir, "data/8_5/stitching/pca_K10_mean.rds") )
 rownames.counts.stitched = rownames(counts.stitched)
-rownames.counts.stitched = rownames.counts.stitched[!is.na(rownames.counts.stitched),]
+rownames.counts.stitched = rownames.counts.stitched[!is.na(rownames.counts.stitched)]
 counts.stitched = counts.stitched[rownames(counts.stitched) %in% rownames.counts.stitched,]
   
 # delete after scrupt is re-run (colnames should match)
