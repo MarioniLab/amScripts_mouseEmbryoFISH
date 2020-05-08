@@ -55,7 +55,10 @@ counts.seq = counts.seq[,idx]
 
 # load stitching 
 counts.stitched = readRDS(paste0( root.dir, "data/8_5/stitching/pca_K10_mean.rds") )
-
+rownames.counts.stitched = rownames(counts.stitched)
+rownames.counts.stitched = rownames.counts.stitched[!is.na(rownames.counts.stitched),]
+counts.stitched = counts.stitched[rownames(counts.stitched) %in% rownames.counts.stitched,]
+  
 # delete after scrupt is re-run (colnames should match)
 id = intersect( colnames(counts.stitched) , colnames(counts.seq) )
 counts.stitched = counts.stitched[,colnames(counts.stitched) %in% id]
@@ -125,8 +128,7 @@ markers.mtrx = lapply(unq.CT, function(x1){
         
         for (i in 1:nrow(corr.stat.embryo)){
           counts.gene = current.counts.oneEmbryo[rownames(current.counts.oneEmbryo) == corr.stat.embryo$Gene[i], ]
-          uniqueID = colnames(current.counts.oneEmbryo)
-          counts.gene = data.frame(uniqueID = uniqueID, counts = counts.gene)
+          counts.gene = data.frame(uniqueID = names(counts.gene), counts = counts.gene)
           current.meta.gene = merge(current.meta.oneEmbryo, counts.gene)
           current.corr = rcorr(current.meta.gene$short.dist, current.meta.gene$counts, type = "pearson")
           corr.stat.embryo$corr[i] = current.corr$r[1,2]
@@ -143,6 +145,9 @@ markers.mtrx = lapply(unq.CT, function(x1){
       corr.stat$CT1 = x1
       corr.stat$CT2 = x2
       return(corr.stat)
+      
+      saveRDS(corr.stat, file = paste0( root.dir, "data/8_5/CT2CT/stitched_markers_" ,x1 , "_",x2, ".rds"))
+
     }
   })
   return(markers.singleCT)
