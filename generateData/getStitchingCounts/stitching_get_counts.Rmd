@@ -48,6 +48,20 @@ counts.stitched = readRDS(paste0(root.dir, "data/8_5/stitching/pca_K10_mean.rds"
 ```
 
 
+# non-0 counts
+
+all genes that have at least one non-zero count
+
+```{r get-non-zero}
+
+genes.sum = apply(counts.stitched , 1 , sum)
+idx = which(genes.sum > 0)
+counts.stitched.nonzero = counts.stitched[idx,]
+saveRDS(counts.stitched.nonzero, file = paste0( root.dir, "data/8_5/stitching/pca_K10_mean__nonZero.rds"))
+
+```
+
+
 # Seq-FISH genes
 
 
