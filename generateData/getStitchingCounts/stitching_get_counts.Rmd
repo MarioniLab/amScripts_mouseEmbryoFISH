@@ -56,7 +56,8 @@ all genes that have at least one non-zero count
 
 genes.sum = apply(counts.stitched , 1 , sum)
 idx = which(genes.sum > 0)
-counts.stitched.nonzero = counts.stitched[idx,]
+rownames.genes = rownames(counts.stitched)
+counts.stitched.nonzero = counts.stitched[rownames(counts.stitched) %in% rownames.genes[idx],]
 saveRDS(counts.stitched.nonzero, file = paste0( root.dir, "data/8_5/stitching/pca_K10_mean__nonZero.rds"))
 
 ```
