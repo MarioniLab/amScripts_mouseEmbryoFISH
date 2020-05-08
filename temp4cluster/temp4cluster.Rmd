@@ -34,7 +34,6 @@ library(ggplot2)
 library(tidyverse)
 library(irlba)
 library(Hmisc)
-library(monocle)
 
 
 root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
