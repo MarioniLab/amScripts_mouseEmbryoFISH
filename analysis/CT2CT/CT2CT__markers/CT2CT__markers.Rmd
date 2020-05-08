@@ -59,7 +59,7 @@ counts.seq = counts.seq[,idx]
 #counts.stitched = readRDS(paste0( root.dir, "data/8_5/stitching/pca_K10_mean.rds") )
 #counts.stitched = readRDS(paste0( root.dir, "data/8_5/stitching/pca_K10_mean__nonZero.rds") )
 counts.stitched = readRDS(paste0( root.dir, "data/8_5/stitching/pca_K10_mean__nonZero.rds") )
-#counts.nonzero = readRDS(paste0( root.dir, "data/8_5/stitching/pca_K10_mean__nonZero.rds") )
+#counts.stitched = readRDS(paste0( root.dir, "data/8_5/stitching/pca_K10_mean__toCheck.rds") )
 
 
 # delete after scrupt is re-run (colnames should match)
@@ -91,6 +91,7 @@ neigh.net = subgraph(neigh.net, vertices.neigh.net)
 ```{r CT-CT-markers-stitched}
 
 counts = counts.stitched
+counts = unique(counts)
 
 unq.CT = table(meta$celltype_mapped)
 unq.CT = names(unq.CT[unq.CT > 100])
@@ -121,8 +122,7 @@ markers.mtrx = lapply(unq.CT, function(x1){
       # get corr stat
       corr.stat = lapply(unique(current.meta$embryo), function(x){
         corr.stat.embryo = data.frame(Gene = rownames(current.counts))
-        
-        
+      
         corr.stat.embryo$corr <- NA
         corr.stat.embryo$P <- NA
         idx =  current.meta$embryo == x
@@ -140,12 +140,7 @@ markers.mtrx = lapply(unq.CT, function(x1){
             current.corr = rcorr(current.meta.gene$short.dist, current.meta.gene$counts, type = "pearson")
             corr.stat.embryo$corr[i] = current.corr$r[1,2]
             corr.stat.embryo$P[i] = current.corr$P[1,2]
-          } else {
-            stat.weird = data.frame(CT1 = x1, CT2 = x2, gene.toInvestigate = corr.stat.embryo$Gene[i])
-            save.name = paste0("toCheck_stitched_", x1, "_", x2, "_", corr.stat.embryo$Gene[i], ".tab")
-            write.table(stat.weird, file = paste0(root.dir, "data/8_5/CT2CT/", save.name), row.names = F, col.names = T, sep = "\t")
-          }
-          
+          } 
         }
         corr.stat.embryo$P = p.adjust(corr.stat.embryo$P, method = "BH", n = length(corr.stat.embryo$P))
         corr.stat.embryo$embryo = x
@@ -223,12 +218,7 @@ markers.mtrx = lapply(unq.CT, function(x1){
             corr.stat.embryo$corr[i] = current.corr$r[1,2]
             corr.stat.embryo$P[i] = current.corr$P[1,2]
           }
-          else {
-            stat.weird = data.frame(CT1 = x1, CT2 = x2, gene.toInvestigate = corr.stat.embryo$Gene[i])
-            save.name = paste0("toCheck_seq_", x1, "_", x2, "_", corr.stat.embryo$Gene[i], ".tab")
-            write.table(stat.weird, file = paste0(root.dir, "data/8_5/CT2CT/", save.name), row.names = F, col.names = T, sep = "\t")
-            
-          }
+        
         }
         corr.stat.embryo$P = p.adjust(corr.stat.embryo$P, method = "BH", n = length(corr.stat.embryo$P))
         corr.stat.embryo$embryo = x
