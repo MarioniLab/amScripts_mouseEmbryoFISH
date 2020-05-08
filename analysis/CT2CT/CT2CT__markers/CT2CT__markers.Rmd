@@ -40,7 +40,8 @@ library(ggpubr)
 library(viridis)
 library(Hmisc)
 
-root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
+#root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
+root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
 source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
 set.seed(32)
 
@@ -55,10 +56,14 @@ counts.seq = counts.seq[,idx]
 
 # load stitching 
 counts.stitched = readRDS(paste0( root.dir, "data/8_5/stitching/pca_K10_mean.rds") )
+
+#counts.stitched = readRDS(paste0( root.dir, "data/8_5/stitching/pca_K10_mean__HVGs.rds") )
+
 rownames.counts.stitched = rownames(counts.stitched)
 rownames.counts.stitched = rownames.counts.stitched[!is.na(rownames.counts.stitched)]
 counts.stitched = counts.stitched[rownames(counts.stitched) %in% rownames.counts.stitched,]
-  
+counts.stitched = as.matrix(counts.stitched)
+
 # delete after scrupt is re-run (colnames should match)
 id = intersect( colnames(counts.stitched) , colnames(counts.seq) )
 counts.stitched = counts.stitched[,colnames(counts.stitched) %in% id]
@@ -128,6 +133,7 @@ markers.mtrx = lapply(unq.CT, function(x1){
         
         for (i in 1:nrow(corr.stat.embryo)){
           counts.gene = current.counts.oneEmbryo[rownames(current.counts.oneEmbryo) == corr.stat.embryo$Gene[i], ]
+          
           counts.gene = data.frame(uniqueID = names(counts.gene), counts = counts.gene)
           current.meta.gene = merge(current.meta.oneEmbryo, counts.gene)
           current.corr = rcorr(current.meta.gene$short.dist, current.meta.gene$counts, type = "pearson")
