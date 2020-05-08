@@ -121,7 +121,7 @@ markers.mtrx = lapply(unq.CT, function(x1){
       # get corr stat
       corr.stat = lapply(unique(current.meta$embryo), function(x){
         corr.stat.embryo = data.frame(Gene = rownames(current.counts))
-        corr.stat.embryo$Gene = factor(corr.stat.embryo$Gene)
+        
         
         corr.stat.embryo$corr <- NA
         corr.stat.embryo$P <- NA
@@ -132,13 +132,20 @@ markers.mtrx = lapply(unq.CT, function(x1){
         current.meta.oneEmbryo = current.meta.oneEmbryo[order(current.meta.oneEmbryo$uniqueID),]
         
         for (i in 1:nrow(corr.stat.embryo)){
-          counts.gene = current.counts.oneEmbryo[rownames(current.counts.oneEmbryo) == corr.stat.embryo$Gene[i], ]
+          if ( sum(rownames(current.counts.oneEmbryo) == corr.stat.embryo$Gene[i]) == 1) {
+            counts.gene = current.counts.oneEmbryo[rownames(current.counts.oneEmbryo) == corr.stat.embryo$Gene[i], ]
           
-          counts.gene = data.frame(uniqueID = names(counts.gene), counts = counts.gene)
-          current.meta.gene = merge(current.meta.oneEmbryo, counts.gene)
-          current.corr = rcorr(current.meta.gene$short.dist, current.meta.gene$counts, type = "pearson")
-          corr.stat.embryo$corr[i] = current.corr$r[1,2]
-          corr.stat.embryo$P[i] = current.corr$P[1,2]
+            counts.gene = data.frame(uniqueID = names(counts.gene), counts = counts.gene)
+            current.meta.gene = merge(current.meta.oneEmbryo, counts.gene)
+            current.corr = rcorr(current.meta.gene$short.dist, current.meta.gene$counts, type = "pearson")
+            corr.stat.embryo$corr[i] = current.corr$r[1,2]
+            corr.stat.embryo$P[i] = current.corr$P[1,2]
+          } else {
+            stat.weird = data.frame(CT1 = x1, CT2 = x2, gene.toInvestigate = corr.stat.embryo$Gene[i])
+            save.name = paste0("toCheck_stitched_", x1, "_", x2, "_", corr.stat.embryo$Gene[i], ".tab")
+            write.table(stat.weird, file = paste0(root.dir, "data/8_5/CT2CT/", save.name), row.names = F, col.names = T, sep = "\t")
+          }
+          
         }
         corr.stat.embryo$P = p.adjust(corr.stat.embryo$P, method = "BH", n = length(corr.stat.embryo$P))
         corr.stat.embryo$embryo = x
@@ -199,7 +206,6 @@ markers.mtrx = lapply(unq.CT, function(x1){
       # get corr stat
       corr.stat = lapply(unique(current.meta$embryo), function(x){
         corr.stat.embryo = data.frame(Gene = rownames(current.counts))
-        corr.stat.embryo$Gene = factor(corr.stat.embryo$Gene)
         corr.stat.embryo$corr <- NA
         corr.stat.embryo$P <- NA
         idx =  current.meta$embryo == x
@@ -209,12 +215,20 @@ markers.mtrx = lapply(unq.CT, function(x1){
         current.meta.oneEmbryo = current.meta.oneEmbryo[order(current.meta.oneEmbryo$uniqueID),]
         
         for (i in 1:nrow(corr.stat.embryo)){
-          counts.gene = current.counts.oneEmbryo[rownames(current.counts.oneEmbryo) == corr.stat.embryo$Gene[i], ]
-          counts.gene = data.frame(uniqueID = names(counts.gene), counts = counts.gene)
-          current.meta.gene = merge(current.meta.oneEmbryo, counts.gene)
-          current.corr = rcorr(current.meta.gene$short.dist, current.meta.gene$counts, type = "pearson")
-          corr.stat.embryo$corr[i] = current.corr$r[1,2]
-          corr.stat.embryo$P[i] = current.corr$P[1,2]
+          if ( sum(rownames(current.counts.oneEmbryo) == corr.stat.embryo$Gene[i]) == 1) {
+            counts.gene = current.counts.oneEmbryo[rownames(current.counts.oneEmbryo) == corr.stat.embryo$Gene[i], ]
+            counts.gene = data.frame(uniqueID = names(counts.gene), counts = counts.gene)
+            current.meta.gene = merge(current.meta.oneEmbryo, counts.gene)
+            current.corr = rcorr(current.meta.gene$short.dist, current.meta.gene$counts, type = "pearson")
+            corr.stat.embryo$corr[i] = current.corr$r[1,2]
+            corr.stat.embryo$P[i] = current.corr$P[1,2]
+          }
+          else {
+            stat.weird = data.frame(CT1 = x1, CT2 = x2, gene.toInvestigate = corr.stat.embryo$Gene[i])
+            save.name = paste0("toCheck_seq_", x1, "_", x2, "_", corr.stat.embryo$Gene[i], ".tab")
+            write.table(stat.weird, file = paste0(root.dir, "data/8_5/CT2CT/", save.name), row.names = F, col.names = T, sep = "\t")
+            
+          }
         }
         corr.stat.embryo$P = p.adjust(corr.stat.embryo$P, method = "BH", n = length(corr.stat.embryo$P))
         corr.stat.embryo$embryo = x
