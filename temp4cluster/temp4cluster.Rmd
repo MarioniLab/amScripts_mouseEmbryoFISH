@@ -37,6 +37,20 @@ library(Hmisc)
 library(monocle)
 
 
+root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
+
+# load stitching
+counts.stitched = readRDS(paste0(root.dir, "data/8_5/stitching/pca_K10_mean.rds"))
+genes.sum = apply(counts.stitched , 1 , sum)
+genes.na = sapply(1:nrow(counts.stitched), function(x){
+  current.counts = counts.stitched[x,]
+  return(sum(is.na(current.counts)))
+})
+
+df = data.frame(gene = rownames(counts.stitched), sum.gene = genes.sum, n.na = genes.na)
+write.table(df, file = paste0(root.dir, "data/stat_stitched.tab"), row.names = F, col.names = T, sep = "\t") 
+
 ```
 
 
