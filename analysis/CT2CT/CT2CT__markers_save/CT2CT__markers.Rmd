@@ -1,0 +1,172 @@
+---
+title: "CT -> CT markers."
+author: "Alsu Missarova"
+output:
+  BiocStyle::html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes  
+  html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: true
+    theme: united
+---
+
+**This script is dedicated to understand in greater detailes what kind of cells are assigned to Mesenchyme cell type (mesodermal class). It contains the analysis of unsupervised clustering + marker detection. Additionally, it touches the relationship of the celltype with heart which seems to be the case (visual asssesement of spatial positioning between the 2 cell types).**
+
+*Note (IMPORTANT): there is currently inconsistency between seq-counts and stitched data (performed on different mappings and different filtering criteria for cells were used). Take marker detection with a grain of salt - might change after mapping and stitching are re-done.*
+
+**Load dependencies and source data.**
+
+```{r load_data, message=FALSE}
+
+library(Matrix)
+library(scran)
+library(igraph)
+library(reshape2)
+library(knitr)
+library(scater)
+library(scales)
+library(biomaRt)
+library(VennDiagram)
+library(RColorBrewer)
+library(tibble)
+library(ggplot2)
+library(tidyverse)
+library(ggpubr)
+library(viridis)
+library(Hmisc)
+
+root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
+#root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
+set.seed(32)
+
+# load sce files with counts data; clean from cells with 0 area and total # mRNA < user's threshold 
+load_embryo_8.5(version = "old_filtered", dir = "cluster")
+#load_embryo_8.5(version = "old_filtered")
+counts.seq = assay(sce, "logcounts.area")
+
+# only work with embryo1 and embryo2 and mesenchyme
+idx = meta$embryo %in% c("embryo1", "embryo2") 
+meta = meta[idx,]
+counts.seq = counts.seq[,idx]
+
+# load stitching 
+#counts.stitched = readRDS(paste0( root.dir, "data/8_5/stitching/pca_K10_mean.rds") )
+#counts.stitched = readRDS(paste0( root.dir, "data/8_5/stitching/pca_K10_mean__nonZero.rds") )
+counts.stitched = readRDS(paste0( root.dir, "data/8_5/stitching/pca_K10_mean__nonZero.rds") )
+#counts.stitched = readRDS(paste0( root.dir, "data/8_5/stitching/pca_K10_mean__toCheck.rds") )
+
+
+# delete after scrupt is re-run (colnames should match)
+id = intersect( colnames(counts.stitched) , colnames(counts.seq) )
+counts.stitched = counts.stitched[,colnames(counts.stitched) %in% id]
+meta = meta[meta$uniqueID %in% id,]
+counts.seq = counts.seq[,colnames(counts.seq) %in% id]
+
+# order all
+meta = meta[order(meta$uniqueID),]
+counts.seq = counts.seq[,order(colnames(counts.seq))]
+counts.stitched = counts.stitched[,order(colnames(counts.stitched))]
+
+# load neighborhood network
+neigh.net = readRDS(paste0(root.dir, "data/8_5/neighborhood/E8.5_neighbourGraph_1.1.Rds"))
+# leave only those in our dataset
+vertices.neigh.net = as_ids( V(neigh.net) )
+vertices.neigh.net = intersect(vertices.neigh.net, meta$uniqueID)
+neigh.net = subgraph(neigh.net, vertices.neigh.net)
+
+
+```
+
+
+# Spatial markers
+
+## Stitched
+
+```{r CT-CT-markers-stitched}
+
+counts = counts.stitched
+counts = unique(counts)
+
+unq.CT = table(meta$celltype_mapped)
+unq.CT = names(unq.CT[unq.CT > 100])
+unq.CT = setdiff(unq.CT, "Erythroid3")
+
+# find shortest paths between heart and mesoderm celltypes
+vertices.neigh.net = V(neigh.net)
+vertices.neigh.net.vec = as_ids(vertices.neigh.net)
+
+for (x1 in unq.CT ){
+  for (x2 in unq.CT ){
+    if (!x1 == x2){
+      print(paste0(x1 , "-", x2))
+      idx.from = which( vertices.neigh.net.vec %in% meta$uniqueID[meta$celltype_mapped == x1])
+      idx.to = which( vertices.neigh.net.vec %in% meta$uniqueID[meta$celltype_mapped == x2])
+
+      short.dist = distances(neigh.net, v = vertices.neigh.net[idx.from], to = vertices.neigh.net[idx.to])
+      short.dist = apply(short.dist, 2, min)
+      short.dist = short.dist[!is.na(short.dist) & !is.infinite(short.dist)]
+      short.dist = data.frame(uniqueID = names(short.dist), short.dist = short.dist)
+      current.meta = merge(meta, short.dist, all.y = T)
+      
+      current.counts = counts[,colnames(counts) %in% current.meta$uniqueID]
+      
+      current.counts = current.counts[,order(colnames(current.counts))]
+      current.meta = current.meta[order(current.meta$uniqueID),]
+      
+      # get corr stat
+      corr.stat = lapply(unique(current.meta$embryo), function(x){
+        corr.stat.embryo = data.frame(Gene = rownames(current.counts))
+      
+        corr.stat.embryo$corr <- NA
+        corr.stat.embryo$P <- NA
+        idx =  current.meta$embryo == x
+        current.counts.oneEmbryo = current.counts[, colnames(current.counts) %in% current.meta$uniqueID[idx]]
+        current.meta.oneEmbryo = current.meta[idx,]
+        current.counts.oneEmbryo = current.counts.oneEmbryo[,order(colnames(current.counts.oneEmbryo))]
+        current.meta.oneEmbryo = current.meta.oneEmbryo[order(current.meta.oneEmbryo$uniqueID),]
+        
+        for (i in 1:nrow(corr.stat.embryo)){
+          if ( sum(rownames(current.counts.oneEmbryo) == corr.stat.embryo$Gene[i]) == 1) {
+            counts.gene = current.counts.oneEmbryo[rownames(current.counts.oneEmbryo) == corr.stat.embryo$Gene[i], ]
+          
+            counts.gene = data.frame(uniqueID = names(counts.gene), counts = counts.gene)
+            current.meta.gene = merge(current.meta.oneEmbryo, counts.gene)
+            current.corr = rcorr(current.meta.gene$short.dist, current.meta.gene$counts, type = "pearson")
+            corr.stat.embryo$corr[i] = current.corr$r[1,2]
+            corr.stat.embryo$P[i] = current.corr$P[1,2]
+          } 
+        }
+        corr.stat.embryo$P = p.adjust(corr.stat.embryo$P, method = "BH", n = length(corr.stat.embryo$P))
+        corr.stat.embryo$embryo = x
+        corr.stat.embryo$cells.tested = dim(current.meta.oneEmbryo)[1]
+        
+        return(corr.stat.embryo)
+      })
+      
+      corr.stat = do.call(rbind, corr.stat)
+      corr.stat$CT1 = x1
+      corr.stat$CT2 = x2
+      saveRDS(corr.stat, file = paste0( root.dir, "data/8_5/CT2CT/stitched_markers_" ,x1 , "_",x2, ".rds"))
+
+    }
+  }
+}
+
+
+
+```
+
+
+
+
+#Session Info
+
+```{r sessinf}
+sessionInfo()
+```
