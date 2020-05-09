@@ -39,6 +39,7 @@ library(tidyverse)
 library(ggpubr)
 library(viridis)
 library(Hmisc)
+library(stringr)
 
 root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
 #root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
@@ -152,7 +153,12 @@ for (x1 in unq.CT ){
       corr.stat = do.call(rbind, corr.stat)
       corr.stat$CT1 = x1
       corr.stat$CT2 = x2
-      saveRDS(corr.stat, file = paste0( root.dir, "data/8_5/CT2CT/stitched_markers_" ,x1 , "_",x2, ".rds"))
+      
+      save.name.x1 = str_replace_all(x1   , " ", "_")
+      save.name.x1 = str_replace_all(save.name.x1   , "/", "_")
+      save.name.x2 = str_replace_all(x2   , " ", "_")
+      save.name.x2 = str_replace_all(save.name.x2   , "/", "_")
+      saveRDS(corr.stat, file = paste0( root.dir, "data/8_5/CT2CT/stitched_markers_" ,save.name.x1 , "__",save.name.x2, ".rds"))
 
     }
   }
