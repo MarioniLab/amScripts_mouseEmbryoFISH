@@ -36,43 +36,35 @@ source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
 # load seq 
 
 # load atlas
-meta = AtlasSampleMetadata
-meta_sub = subset(meta, stage %in% c("E8.5", "E8.25"))
-sce.atlas <- EmbryoAtlasData(samples = meta_sub$sample)
-singlets <- which(!(colData(sce.atlas)$doublet | colData(sce.atlas)$stripped))
-sce.atlas <- sce.atlas[,singlets]
-
-# polish gene names
-rowData(sce.atlas)[rowData(sce.atlas)[,"SYMBOL"] == "Prkcdbp", "SYMBOL"] <- "Cavin3"
-rowData(sce.atlas)[rowData(sce.atlas)[,"SymbolUniq"] == "Prkcdbp", "SymbolUniq"] <- "Cavin3"
-rownames(sce.atlas) <- rowData(sce.atlas)$SymbolUniq
-sce.atlas = sce.atlas[, !is.na(sce.atlas$celltype)]
+# meta = AtlasSampleMetadata
+# meta_sub = subset(meta, stage %in% c("E8.5", "E8.25"))
+# sce.atlas <- EmbryoAtlasData(samples = meta_sub$sample)
+# singlets <- which(!(colData(sce.atlas)$doublet | colData(sce.atlas)$stripped))
+# sce.atlas <- sce.atlas[,singlets]
+# 
+# # polish gene names
+# rowData(sce.atlas)[rowData(sce.atlas)[,"SYMBOL"] == "Prkcdbp", "SYMBOL"] <- "Cavin3"
+# rowData(sce.atlas)[rowData(sce.atlas)[,"SymbolUniq"] == "Prkcdbp", "SymbolUniq"] <- "Cavin3"
+# rownames(sce.atlas) <- rowData(sce.atlas)$SymbolUniq
+# sce.atlas = sce.atlas[, !is.na(sce.atlas$celltype)]
 
 # add cosine norm
-sce.atlas <- computeSumFactors(sce.atlas)
-sce.atlas <- scater::normalize(sce.atlas)
-assay(sce.atlas, "cosineNorm") <- cosineNorm(logcounts(sce.atlas))
+# sce.atlas <- computeSumFactors(sce.atlas)
+# sce.atlas <- scater::normalize(sce.atlas)
+# assay(sce.atlas, "cosineNorm") <- cosineNorm(logcounts(sce.atlas))
+
+
+
+# load scRNA-seq atlas
+load_data_atlas(rownames_ensembl = F)
+meta.atlas$celltype[meta.atlas$doublet] = "Doublet"
+meta.atlas$celltype[meta.atlas$stripped] = "Stripped"
+
+# discard doublets and stripped for the atlas - we don't want to map to them
+idx = meta.atlas$stage %in% c("E8.25", "E8.5") & !meta.atlas$celltype %in% c("Doublet", "Stripped")
+sce.atlas = sce.atlas[,idx]
 saveRDS( sce.atlas, paste0(root.dir, "data/reducedAtlas/E8_25__E8_5.rds"))
 
-
-
-
-# # load scRNA-seq atlas
-# load_data_atlas(rownames_ensembl = F)
-# meta.atlas$celltype[meta.atlas$doublet] = "Doublet"
-# meta.atlas$celltype[meta.atlas$stripped] = "Stripped"
-# 
-# # discard doublets and stripped for the atlas - we don't want to map to them
-# idx = !meta.atlas$celltype %in% c("Doublet", "Stripped")
-# meta.atlas = meta.atlas[idx,]
-# sce.atlas = sce.atlas[,idx]
-# sfs.atlas = sfs.atlas[idx]
-# 
-# # only keep E8.5 and E8.25
-# idx = meta.atlas$stage %in% c("E8.25", "E8.5")
-# meta.atlas = meta.atlas[idx,]
-# sce.atlas = sce.atlas[,idx]
-# sfs.atlas = sfs.atlas[idx]
 # 
 # # save reduced sce.atlas, meta.atlas, sfs.atlas and genes
 # saveRDS( sce.atlas, paste0(root.dir, "data/reducedAtlas/sce.rds"))
