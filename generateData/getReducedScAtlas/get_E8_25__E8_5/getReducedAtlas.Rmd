@@ -29,7 +29,7 @@ library(knitr)
 library(scater)
 library(scales)
 library(biomaRt)
-library(MouseGastrulationData)
+#library(MouseGastrulationData)
 root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
 source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
 
