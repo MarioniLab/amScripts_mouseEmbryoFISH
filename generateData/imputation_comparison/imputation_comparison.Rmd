@@ -89,8 +89,10 @@ knns = lapply(nPC, function(x){
 
 # get ids, celltypes and distances for 50 closest cells
 mapping = lapply(c(1:length(nPC)), function(y){
+  
   cells.mapped = t(apply(knns[[y]]$index, 1, function(x) colnames(sce.atlas)[x]))
-  distances.mapped = t(apply(knns[[y]]$distance, 1, function(x) colnames(sce.atlas)[x])) 
+  distances.mapped = knns[[y]]$distance
+  #distances.mapped = t(apply(knns[[y]]$distance, 1, function(x) colnames(sce.atlas)[x])) 
   celltypes.mapped = t(apply(cells.mapped, 1, function(x) sce.atlas$celltype[match(x, colnames(sce.atlas))]))
   
   current.mapping = lapply(1:dim(sce.seq)[2], function(x){
