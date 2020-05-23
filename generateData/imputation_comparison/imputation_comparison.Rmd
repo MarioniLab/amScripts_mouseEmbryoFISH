@@ -62,8 +62,8 @@ sce.atlas <- scater::normalize(sce.atlas)
 assay(sce.atlas, "cosineNorm") <- cosineNorm(logcounts(sce.atlas))
 
 # seq and atlas
-sce.seq = sce.seq[,order(colnames(sce.seq))]
-sce.atlas = sce.atlas[,order(colnames(sce.atlas))]
+sce.seq = sce.seq[order(rownames(sce.seq)),]
+sce.atlas = sce.atlas[order(rownames(sce.atlas)),]
 
 # join them together
 sce.seq$embryo_pos = paste0(sce.seq$embryo, "_", sce.seq$pos)
