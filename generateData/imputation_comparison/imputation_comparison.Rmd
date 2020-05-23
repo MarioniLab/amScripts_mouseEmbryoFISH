@@ -53,10 +53,10 @@ sce.seq = sce[!rownames(sce) == "Xist",]
 
 # load atlas 
 sce.atlas = readRDS(paste0(root.dir, "data/reducedAtlas/E8_25__E8_5.rds"))
-rowData(sce.atlas)[rowData(sce.atlas)[,"SYMBOL"] == "Prkcdbp", "SYMBOL"] <- "Cavin3"
-rowData(sce.atlas)[rowData(sce.atlas)[,"SymbolUniq"] == "Prkcdbp", "SymbolUniq"] <- "Cavin3"
-rownames(sce.atlas) <- rowData(sce.atlas)$SymbolUniq
-sce.atlas = sce.atlas[rowData(sce.atlas)$SymbolUniq %in% rownames(sce.seq), !is.na(sce.atlas$celltype)]
+#rowData(sce.atlas)[rowData(sce.atlas)[,"SYMBOL"] == "Prkcdbp", "SYMBOL"] <- "Cavin3"
+#rowData(sce.atlas)[rowData(sce.atlas)[,"SymbolUniq"] == "Prkcdbp", "SymbolUniq"] <- "Cavin3"
+#rownames(sce.atlas) <- rowData(sce.atlas)$SymbolUniq
+sce.atlas = sce.atlas[rownames(sce.seq), ]
 sce.atlas <- computeSumFactors(sce.atlas)
 sce.atlas <- scater::normalize(sce.atlas)
 assay(sce.atlas, "cosineNorm") <- cosineNorm(logcounts(sce.atlas))
