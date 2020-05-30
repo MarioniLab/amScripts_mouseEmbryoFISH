@@ -1,0 +1,115 @@
+---
+title: "Pipeline to map atlas onto atlas using PCs fro seq."
+output:
+  BiocStyle::html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes  
+  html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: true
+    theme: united
+---
+
+Options:
+
+nPC = 25, 50, 100
+
+nn = 50 
+
+# Load dependencies and source data
+
+```{r load_data, message=FALSE}
+
+library(Matrix)
+library(scran)
+library(BiocParallel)
+library(BiocNeighbors)
+ncores = 3
+mcparam = MulticoreParam(workers = ncores)
+register(mcparam)
+library(igraph)
+library(reshape2)
+library(knitr)
+library(scater)
+library(scales)
+library(biomaRt)
+library(batchelor)
+library(irlba)
+library(batchelor)
+
+#root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
+root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
+
+load_embryo_8.5(dir = "cluster", version = "old_filtered")
+#load_embryo_8.5(dir = "local", version = "old_filtered")
+sce.seq = sce[!rownames(sce) == "Xist",]
+
+# load atlas 
+sce.atlas = readRDS(paste0(root.dir, "data/reducedAtlas/E8_25__E8_5.rds"))
+#rowData(sce.atlas)[rowData(sce.atlas)[,"SYMBOL"] == "Prkcdbp", "SYMBOL"] <- "Cavin3"
+#rowData(sce.atlas)[rowData(sce.atlas)[,"SymbolUniq"] == "Prkcdbp", "SymbolUniq"] <- "Cavin3"
+#rownames(sce.atlas) <- rowData(sce.atlas)$SymbolUniq
+sce.atlas = sce.atlas[rownames(sce.seq), ]
+sce.atlas <- computeSumFactors(sce.atlas)
+sce.atlas <- scater::normalize(sce.atlas)
+assay(sce.atlas, "cosineNorm") <- cosineNorm(logcounts(sce.atlas))
+
+# seq and atlas
+sce.atlas = sce.atlas[order(rownames(sce.atlas)),]
+
+sce.cosine = assay(sce.atlas, "cosineNorm")
+batchFactor = factor(c(as.character(sce.atlas$sample)))
+
+```
+
+# Map onto atlas
+
+```{r map-atlas, message=FALSE}
+
+nPC = c(25, 50, 100)
+knns = lapply(nPC, function(x){
+  mbpca = multiBatchPCA(sce.cosine, batch = batchFactor, d = x)
+  out = do.call(reducedMNN, mbpca)
+  atlas.pca = out$corrected
+  current.knns = queryKNN( atlas.pca, atlas.pca, k = 51, 
+                           get.index = TRUE, get.distance = TRUE, BPPARAM = mcparam)
+  return(current.knns) 
+})
+
+# get ids, celltypes and distances for 50 closest cells
+mapping = lapply(c(1:length(nPC)), function(y){
+  
+  cells.mapped = t(apply(knns[[y]]$index, 1, function(x) colnames(sce.atlas)[x]))
+  cells.mapped = cells.mapped[, 2:ncol(cells.mapped)]
+  distances.mapped = knns[[y]]$distance
+  distances.mapped = distances.mapped[,2:ncol(distances.mapped)]
+  celltypes.mapped = t(apply(cells.mapped, 1, function(x) sce.atlas$celltype[match(x, colnames(sce.atlas))]))
+  
+  current.mapping = lapply(1:dim(cells.mapped)[1], function(x){
+    out = list(cells.mapped = cells.mapped[x,],
+               celltypes.mapped = celltypes.mapped[x,],
+               distances.mapped = distances.mapped[x,])
+    return(out)
+  })
+  names(current.mapping) = colnames(sce.atlas)
+  return(current.mapping)
+})
+names(mapping) = paste0("PC_", nPC)
+saveRDS(mapping, file = paste0( root.dir, "data/8_5/mapping_atlas_to_atlas.rds"))
+
+
+```
+
+
+
+
+#Session Info
+
+```{r sessinf}
+sessionInfo()
+```
