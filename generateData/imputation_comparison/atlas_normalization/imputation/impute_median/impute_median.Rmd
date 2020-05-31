@@ -1,0 +1,104 @@
+---
+title: "Pipeline to imputate from atlas (median)."
+output:
+  BiocStyle::html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes  
+  html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: true
+    theme: united
+---
+
+Options:
+
+nPC = 25, 50, 100
+
+nn = c(1, 5:5:50) 
+
+metrics: median
+
+# Load dependencies and source data
+
+```{r load_data, message=FALSE}
+
+library(Matrix)
+library(scran)
+library(BiocParallel)
+library(BiocNeighbors)
+ncores = 3
+mcparam = MulticoreParam(workers = ncores)
+register(mcparam)
+library(igraph)
+library(reshape2)
+library(knitr)
+library(scater)
+library(scales)
+library(biomaRt)
+library(batchelor)
+library(irlba)
+library(batchelor)
+
+#root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
+root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
+
+# load atlas 
+sce.atlas = readRDS(paste0(root.dir, "data/reducedAtlas/E8_25__E8_5.rds"))
+sce.atlas <- computeSumFactors(sce.atlas)
+sce.atlas <- scater::normalize(sce.atlas)
+# get sm and seq genes
+genes = read.table(paste0( root.dir, "data/geneInfo/stat.tab"), stringsAsFactors = F, header = T)
+genes = genes$external_gene_name[genes$experiment == "sm"]
+sce.atlas = sce.atlas[rownames(sce.atlas) %in% genes, ]
+counts.atlas = logcounts(sce.atlas)
+
+# get mapping
+mapping = readRDS(paste0( root.dir, "data/8_5/mapping_atlas_to_atlas.rds"))
+
+nPC = c(25, 50, 100)
+n.neigh = seq(5,50,by = 5)
+
+```
+
+
+
+# Median 
+
+```{r imputed-median, message=FALSE}
+
+getCounts = function(cells){
+  current.counts = counts.atlas[,colnames(counts.atlas) %in% cells]
+  current.counts = apply( current.counts , 1, median)
+  return(current.counts)
+}
+
+estimated.counts = lapply(1:length(mapping), function(y){
+  estimated.counts.per_nPC = lapply(n.neigh, function(current.n){
+    estimated.counts.per_nPC.per_nn = bplapply(mapping[[y]], function(x){
+      cells = x$cells.mapped
+      cells = cells[1:current.n]
+      return(getCounts(cells)) 
+    }, BPPARAM = mcparam)
+    estimated.counts.per_nPC.per_nn = do.call(cbind, estimated.counts.per_nPC.per_nn)
+    colnames(estimated.counts.per_nPC.per_nn) = names(mapping[[y]])
+    rownames(estimated.counts.per_nPC.per_nn) = rownames(counts.atlas)
+    saveRDS(estimated.counts.per_nPC.per_nn, 
+            file =  paste0( root.dir, "data/8_5/stitching/compareMetrics/atlas_onto_atlas/nn_", current.n, "__n", names(mapping)[y], "__median.rds"))
+  })
+})
+
+```
+
+
+
+
+#Session Info
+
+```{r sessinf}
+sessionInfo()
+```
