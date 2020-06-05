@@ -106,10 +106,10 @@ genes = rownames(sce.joint)
 
 stat.corr.seq2atlas = bplapply(genes, function(current.gene){
   current.sce.joint = sce.joint[!rownames(sce.joint) == current.gene, ]
-  mbpca = multiBatchPCA(current.sce.joint, batch = batchFactor, d = 10)
+  mbpca = multiBatchPCA(current.sce.joint, batch = batchFactor, d = nPC)
   out = do.call(reducedMNN, mbpca)
   joint.pca = out$corrected
-  current.knns = queryKNN( joint.pca[colnames(sce.atlas),], joint.pca[colnames(sce.seq),], k = 50, 
+  current.knns = queryKNN( joint.pca[colnames(sce.atlas),], joint.pca[colnames(sce.seq),], k = n.neigh, 
                            get.index = TRUE, get.distance = FALSE)
   cells.mapped = t(apply(current.knns$index, 1, function(x) colnames(sce.atlas)[x]))
   current.mapping = lapply(1:dim(sce.seq)[2], function(x){
@@ -129,7 +129,7 @@ stat.corr.seq2atlas = bplapply(genes, function(current.gene){
   
   estimated.counts.mean.per_nn = sapply(current.mapping, function(x){
     cells = x$cells.mapped
-    cells = cells[1:n.neigh]
+    #cells = cells[1:n.neigh]
     out = mean( current.counts.atlas$logcounts[current.counts.atlas$uniqueID %in% cells])
     return(out) 
   })
