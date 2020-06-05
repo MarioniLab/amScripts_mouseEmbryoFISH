@@ -30,7 +30,7 @@ library(Matrix)
 library(scran)
 library(BiocParallel)
 library(BiocNeighbors)
-ncores = 10
+ncores = 15
 mcparam = MulticoreParam(workers = ncores)
 register(mcparam)
 library(igraph)
@@ -42,6 +42,8 @@ library(biomaRt)
 library(batchelor)
 library(irlba)
 library(batchelor)
+library(tibble)
+library(dplyr)
 
 #root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
 root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
