@@ -28,7 +28,7 @@ library(Matrix)
 library(scran)
 library(BiocParallel)
 library(BiocNeighbors)
-ncores = 25
+ncores = 20
 mcparam = MulticoreParam(workers = ncores)
 register(mcparam)
 library(igraph)
@@ -99,7 +99,7 @@ batchFactor = factor(c(as.character(sce.seq$embryo_pos_z), as.character(sce.atla
 
 ```{r seq-closest-cell, message=FALSE}
 
-nPC = 100
+nPC = 50
 genes = rownames(sce.seq)
 
 closestCell.seq = bplapply(genes, function(current.gene){
@@ -123,13 +123,32 @@ saveRDS(closestCell.seq, file =  paste0( root.dir, "data/8_5/stitching/nn_1/clos
 
 ```
 
+## Get imputed logcounts from atlas
+
+```{r seq-imputed-logcounts, message=FALSE}
+
+counts.atlas = logcounts(sce.atlas)
+
+logcounts.imputed.seq = lapply(genes, function(current.gene){
+  current.closestCell = closestCell.seq[current.gene,]
+  current.imputed = sapply(1:length(current.closestCell), function(x){
+    return(counts.atlas[current.gene, current.closestCell[x]])
+  })
+  return(current.imputed)
+})
+logcounts.imputed.seq = do.call(rbind, logcounts.imputed.seq)
+rownames(logcounts.imputed.seq) = genes
+colnames(logcounts.imputed.seq) = colnames(closestCell.seq)
+saveRDS(logcounts.imputed.seq, file =  paste0( root.dir, "data/8_5/stitching/nn_1/imputed_logcounts_seq2atlas.rds"))
+
+```
+
 
 ## Corr: imputed VS real
 
 ```{r seq-corr, message=FALSE}
 
 counts.seq = assay(sce.seq, "logcounts.area")
-counts.atlas = logcounts(sce.atlas)
 
 stat.seq = bplapply(genes, function(current.gene){
   current.closestCell = closestCell.seq[current.gene,]
