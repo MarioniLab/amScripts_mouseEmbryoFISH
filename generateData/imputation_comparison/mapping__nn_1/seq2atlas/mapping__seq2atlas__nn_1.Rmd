@@ -112,6 +112,7 @@ closestCell.seq = bplapply(genes, function(current.gene){
   cells.mapped = t(apply(current.knns$index, 1, function(x) colnames(sce.atlas)[x]))
   colnames(cells.mapped) = colnames(sce.seq)
   return(cells.mapped)
+  saveRDS(closestCell.seq, file =  paste0( root.dir, "data/8_5/stitching/nn_1/closest_cell_seq2atlas_", current.gene, ".rds"))
 }, BPPARAM = mcparam)
 
 closestCell.seq = do.call(rbind, closestCell.seq )
@@ -125,7 +126,7 @@ saveRDS(closestCell.seq, file =  paste0( root.dir, "data/8_5/stitching/nn_1/clos
 
 ## Corr: imputed VS real
 
-```{r seq-closest-cell, message=FALSE}
+```{r seq-corr, message=FALSE}
 
 counts.seq = assay(sce.seq, "logcounts.area")
 counts.atlas = logcounts(sce.atlas)
