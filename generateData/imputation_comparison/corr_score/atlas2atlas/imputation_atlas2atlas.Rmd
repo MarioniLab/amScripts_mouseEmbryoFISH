@@ -115,7 +115,8 @@ stat.corr.atlas2atlas = bplapply(genes, function(current.gene){
   # all
   stat.all = data.frame(gene = current.gene, corr.all = cor(estimated.counts.mean.per_nn$logcounts.real, 
                                                             estimated.counts.mean.per_nn$logcounts.imputed, 
-                                                            method = "pearson"))
+                                                            method = "pearson"), 
+                        mean.all = mean(estimated.counts.mean.per_nn$logcounts.real))
   
   # per CT
   unq.CT = unique(meta.atlas$celltype)
