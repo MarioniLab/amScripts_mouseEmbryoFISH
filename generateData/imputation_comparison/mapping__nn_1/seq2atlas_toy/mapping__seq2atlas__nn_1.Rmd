@@ -28,7 +28,7 @@ library(Matrix)
 library(scran)
 library(BiocParallel)
 library(BiocNeighbors)
-ncores = 5
+ncores = 20
 mcparam = MulticoreParam(workers = ncores)
 register(mcparam)
 library(igraph)
@@ -100,9 +100,8 @@ batchFactor = factor(c(as.character(sce.seq$embryo_pos_z), as.character(sce.atla
 ```{r seq-closest-cell, message=FALSE}
 
 nPC = 50
-#genes = rownames(sce.seq)
+genes = rownames(sce.seq)
 
-genes = c("En1", "Hes7", "Akr1c19", "Etv4", "Mkrn1", "F2r", "Nid1", "Cdh5", "Fgfr2", "Lhx2")
 closestCell.seq = bplapply(genes, function(current.gene){
   current.sce.joint = sce.joint[!rownames(sce.joint) == current.gene, ]
   mbpca = multiBatchPCA(current.sce.joint, batch = batchFactor, d = nPC)
@@ -112,13 +111,12 @@ closestCell.seq = bplapply(genes, function(current.gene){
                            get.index = TRUE, get.distance = FALSE)
   cells.mapped = t(apply(current.knns$index, 1, function(x) colnames(sce.atlas)[x]))
   colnames(cells.mapped) = colnames(sce.seq)
-  #saveRDS(cells.mapped, file =  paste0( root.dir, "data/8_5/stitching/nn_1/closest_cell_seq2atlas_", current.gene, ".rds"))
   return(cells.mapped)
 }, BPPARAM = mcparam)
 
 closestCell.seq = do.call(rbind, closestCell.seq )
 rownames(closestCell.seq) = genes
-saveRDS(closestCell.seq, file =  paste0( root.dir, "data/8_5/stitching/nn_1/closest_cell_seq2atlas_toy.rds"))
+saveRDS(closestCell.seq, file =  paste0( root.dir, "data/8_5/stitching/nn_1/closest_cell_seq2atlas.rds"))
 
 
 ```
@@ -139,7 +137,7 @@ logcounts.imputed.seq = lapply(genes, function(current.gene){
 logcounts.imputed.seq = do.call(rbind, logcounts.imputed.seq)
 rownames(logcounts.imputed.seq) = genes
 colnames(logcounts.imputed.seq) = colnames(closestCell.seq)
-saveRDS(logcounts.imputed.seq, file =  paste0( root.dir, "data/8_5/stitching/nn_1/imputed_logcounts_seq2atlas_toy.rds"))
+saveRDS(logcounts.imputed.seq, file =  paste0( root.dir, "data/8_5/stitching/nn_1/imputed_logcounts_seq2atlas.rds"))
 
 ```
 
@@ -177,7 +175,7 @@ stat.seq = bplapply(genes, function(current.gene){
   stat = list(stat.all = stat.all, stat.CT = stat.CT)
 }, BPPARAM = mcparam)
 names(stat.seq) = genes
-saveRDS(stat.seq, file =  paste0( root.dir, "data/8_5/stitching/nn_1/stat_corr_seq2atlas_toy.rds"))
+saveRDS(stat.seq, file =  paste0( root.dir, "data/8_5/stitching/nn_1/stat_corr_seq2atlas.rds"))
 
 
 ```
