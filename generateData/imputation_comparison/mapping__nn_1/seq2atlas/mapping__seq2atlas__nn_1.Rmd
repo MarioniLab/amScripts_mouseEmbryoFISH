@@ -28,7 +28,7 @@ library(Matrix)
 library(scran)
 library(BiocParallel)
 library(BiocNeighbors)
-ncores = 10
+ncores = 7
 mcparam = MulticoreParam(workers = ncores)
 register(mcparam)
 library(igraph)
