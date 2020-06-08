@@ -28,7 +28,7 @@ library(Matrix)
 library(scran)
 library(BiocParallel)
 library(BiocNeighbors)
-ncores = 7
+ncores = 10
 mcparam = MulticoreParam(workers = ncores)
 register(mcparam)
 library(igraph)
@@ -111,8 +111,8 @@ closestCell.seq = bplapply(genes, function(current.gene){
                            get.index = TRUE, get.distance = FALSE)
   cells.mapped = t(apply(current.knns$index, 1, function(x) colnames(sce.atlas)[x]))
   colnames(cells.mapped) = colnames(sce.seq)
-  return(cells.mapped)
   saveRDS(cells.mapped, file =  paste0( root.dir, "data/8_5/stitching/nn_1/closest_cell_seq2atlas_", current.gene, ".rds"))
+  return(cells.mapped)
 }, BPPARAM = mcparam)
 
 closestCell.seq = do.call(rbind, closestCell.seq )
