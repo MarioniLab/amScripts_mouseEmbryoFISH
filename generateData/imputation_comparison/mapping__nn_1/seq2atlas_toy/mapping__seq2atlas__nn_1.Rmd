@@ -16,7 +16,7 @@ output:
 
 Options:
 
-nPC = 100
+nPC = 50
 
 nn = 1
 
@@ -28,7 +28,7 @@ library(Matrix)
 library(scran)
 library(BiocParallel)
 library(BiocNeighbors)
-ncores = 10
+ncores = 5
 mcparam = MulticoreParam(workers = ncores)
 register(mcparam)
 library(igraph)
