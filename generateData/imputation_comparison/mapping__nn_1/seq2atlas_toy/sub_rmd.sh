@@ -9,7 +9,7 @@ script_name=seq_nn1_toy
 
 #CHOOSE PARAMETERS
 #RAM in megabytes
-memory=49000
+memory=60000
 r_command="rusage[mem=${memory}]"
 #num_processors
 nproc=5
