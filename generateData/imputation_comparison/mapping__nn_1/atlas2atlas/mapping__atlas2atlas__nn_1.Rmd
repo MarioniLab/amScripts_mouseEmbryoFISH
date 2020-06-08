@@ -1,0 +1,162 @@
+---
+title: "Pipeline to impute atlas onto atlas."
+output:
+  BiocStyle::html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes  
+  html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: true
+    theme: united
+---
+
+Options:
+
+nPC = 50
+
+nn = 1
+
+# Load dependencies and source data
+
+```{r load_data, message=FALSE}
+
+library(Matrix)
+library(scran)
+library(BiocParallel)
+library(BiocNeighbors)
+ncores = 7
+mcparam = MulticoreParam(workers = ncores)
+register(mcparam)
+library(igraph)
+library(reshape2)
+library(knitr)
+library(scater)
+library(scales)
+library(biomaRt)
+library(batchelor)
+library(irlba)
+library(batchelor)
+library(tibble)
+library(dplyr)
+
+#root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
+root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
+
+load_embryo_8.5(dir = "cluster")
+sce.seq = sce[!rownames(sce) == "Xist",]
+
+# load atlas 
+sce.atlas = readRDS(paste0(root.dir, "data/reducedAtlas/E8_25__E8_5.rds"))
+sce.atlas = sce.atlas[rownames(sce.seq), ]
+
+# order seq and atlas (in case, cant hurt, had troubles b4)
+sce.seq = sce.seq[order(rownames(sce.seq)),]
+sce.atlas = sce.atlas[order(rownames(sce.atlas)),]
+meta.atlas = colData(sce.atlas)
+
+# join
+sce.cosine = assay(sce.atlas, "cosineNorm")
+batchFactor = factor(c(as.character(sce.atlas$sample)))
+
+
+```
+
+# Atlas
+
+## Get closest cell
+
+```{r atlas-closest-cell, message=FALSE}
+
+nPC = 50
+genes = rownames(sce.seq)
+
+closestCell.atlas = bplapply(genes, function(current.gene){
+  current.sce.cosine = sce.cosine[!rownames(sce.cosine) == current.gene, ]
+  mbpca = multiBatchPCA(current.sce.cosine, batch = batchFactor, d = nPC)
+  out = do.call(reducedMNN, mbpca)
+  atlas.pca = out$corrected
+  current.knns = queryKNN( atlas.pca, atlas.pca, k = 2, 
+                           get.index = TRUE, get.distance = FALSE)
+  cells.mapped = t(apply(current.knns$index, 1, function(x) colnames(sce.atlas)[x[2]] ))
+  colnames(cells.mapped) = colnames(sce.atlas)
+  return(cells.mapped)
+}, BPPARAM = mcparam)
+
+closestCell.atlas = do.call(rbind, closestCell.atlas )
+rownames(closestCell.atlas) = genes
+
+saveRDS(closestCell.atlas, file =  paste0( root.dir, "data/8_5/stitching/nn_1/closest_cell_atlas2atlas.rds"))
+
+
+```
+
+## Get imputed logcounts from atlas
+
+```{r atlas-imputed-logcounts, message=FALSE}
+
+counts.atlas = logcounts(sce.atlas)
+
+logcounts.imputed.atlas = lapply(genes, function(current.gene){
+  current.closestCell = closestCell.atlas[current.gene,]
+  current.imputed = sapply(1:length(current.closestCell), function(x){
+    return(counts.atlas[current.gene, current.closestCell[x]])
+  })
+  return(current.imputed)
+})
+logcounts.imputed.atlas = do.call(rbind, logcounts.imputed.atlas)
+rownames(logcounts.imputed.atlas) = genes
+colnames(logcounts.imputed.atlas) = colnames(closestCell.atlas)
+saveRDS(logcounts.imputed.atlas, file =  paste0( root.dir, "data/8_5/stitching/nn_1/imputed_logcounts_atlas2atlas.rds"))
+
+```
+
+
+## Corr: imputed VS real
+
+```{r atlas-corr, message=FALSE}
+
+
+stat.atlas = bplapply(genes, function(current.gene){
+  current.closestCell = closestCell.atlas[current.gene,]
+  
+  # real
+  current.real = sapply(1:length(current.closestCell), function(x){
+    return(counts.atlas[current.gene, names(current.closestCell)[x]])
+  })
+  current.real = data.frame(cell = names(current.closestCell), logcounts.real = current.real)
+  
+  #imputed
+  current.imputed = sapply(1:length(current.closestCell), function(x){
+    return(counts.atlas[current.gene, current.closestCell[x]])
+  })
+  current.imputed = data.frame(cell = names(current.closestCell), logcounts.imputed = current.imputed)
+  # joint
+  current.joint = merge(current.real, current.imputed)
+  current.joint = merge(current.joint, meta.atlas)
+  
+  stat.all = data.frame(corr = cor(current.joint$logcounts.real, current.joint$logcounts.imputed, method = "pearson"), 
+              mean.atlas = mean(logcounts.real))
+  stat.CT = current.joint %>% group_by(celltype) %>%
+    summarise(corr = cor(logcounts.real, logcounts.imputed, method = "pearson"), 
+              mean.atlas = mean(logcounts.real))
+  stat = list(stat.all = stat.all, stat.CT = stat.CT)
+}, BPPARAM = mcparam)
+names(stat.atlas) = genes
+saveRDS(stat.atlas, file =  paste0( root.dir, "data/8_5/stitching/nn_1/stat_corr_atlas2atlas.rds"))
+
+
+```
+
+
+#Session Info
+
+```{r sessinf}
+
+sessionInfo()
+
+```
