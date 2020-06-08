@@ -9,10 +9,10 @@ script_name=seq_nn1
 
 #CHOOSE PARAMETERS
 #RAM in megabytes
-memory=130000
+memory=115000
 r_command="rusage[mem=${memory}]"
 #num_processors
-nproc=15
+nproc=13
 
 smg=/nfs/research1/marioni/alsu/singularity/R1.simg
 script=/nfs/research1/marioni/alsu/spatial/mouse_embryo/amScripts_mouseEmbryoFISH/generateData/imputation_comparison/mapping__nn_1/seq2atlas/run_rmd.R
