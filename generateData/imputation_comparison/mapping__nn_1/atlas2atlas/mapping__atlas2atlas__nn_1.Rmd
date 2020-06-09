@@ -140,10 +140,10 @@ stat.atlas = bplapply(genes, function(current.gene){
   current.joint = merge(current.joint, meta.atlas)
   
   stat.all = data.frame(corr = cor(current.joint$logcounts.real, current.joint$logcounts.imputed, method = "pearson"), 
-              mean.atlas = mean(logcounts.real))
+              mean.atlas = mean(current.joint$logcounts.real))
   stat.CT = current.joint %>% group_by(celltype) %>%
     summarise(corr = cor(logcounts.real, logcounts.imputed, method = "pearson"), 
-              mean.atlas = mean(logcounts.real))
+              mean.atlas = mean(current.joint$logcounts.real))
   stat = list(stat.all = stat.all, stat.CT = stat.CT)
 }, BPPARAM = mcparam)
 names(stat.atlas) = genes
