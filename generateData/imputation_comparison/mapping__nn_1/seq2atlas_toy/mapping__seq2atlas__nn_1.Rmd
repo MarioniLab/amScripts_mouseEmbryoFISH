@@ -1,5 +1,5 @@
 ---
-title: "Pipeline to impute atlas onto spatial embryo. TOY (10 genes)"
+title: "Pipeline to impute atlas onto spatial embryo."
 output:
   BiocStyle::html_document:
     code_folding: hide
@@ -28,7 +28,7 @@ library(Matrix)
 library(scran)
 library(BiocParallel)
 library(BiocNeighbors)
-ncores = 20
+ncores = 7
 mcparam = MulticoreParam(workers = ncores)
 register(mcparam)
 library(igraph)
@@ -87,96 +87,36 @@ sce.seq = sce.seq[order(rownames(sce.seq)),]
 sce.atlas = sce.atlas[order(rownames(sce.atlas)),]
 
 # join
-sce.joint = cbind(assay(sce.seq, "cosineNorm.area"), assay(sce.atlas, "cosineNorm"))
-batchFactor = factor(c(as.character(sce.seq$embryo_pos_z), as.character(sce.atlas$sample)))
+#sce.joint = cbind(assay(sce.seq, "cosineNorm.area"), assay(sce.atlas, "cosineNorm"))
+#batchFactor = factor(c(as.character(sce.seq$embryo_pos_z), as.character(sce.atlas$sample)))
 
 
 ```
 
 # Seq
 
-## Get closest cell
-
-```{r seq-closest-cell, message=FALSE}
-
-nPC = 50
-genes = rownames(sce.seq)
-
-closestCell.seq = bplapply(genes, function(current.gene){
-  current.sce.joint = sce.joint[!rownames(sce.joint) == current.gene, ]
-  mbpca = multiBatchPCA(current.sce.joint, batch = batchFactor, d = nPC)
-  out = do.call(reducedMNN, mbpca)
-  joint.pca = out$corrected
-  current.knns = queryKNN( joint.pca[colnames(sce.atlas),], joint.pca[colnames(sce.seq),], k = 1, 
-                           get.index = TRUE, get.distance = FALSE)
-  cells.mapped = t(apply(current.knns$index, 1, function(x) colnames(sce.atlas)[x]))
-  colnames(cells.mapped) = colnames(sce.seq)
-  return(cells.mapped)
-}, BPPARAM = mcparam)
-
-closestCell.seq = do.call(rbind, closestCell.seq )
-rownames(closestCell.seq) = genes
-saveRDS(closestCell.seq, file =  paste0( root.dir, "data/8_5/stitching/nn_1/closest_cell_seq2atlas.rds"))
-
-
-```
-
 ## Get imputed logcounts from atlas
 
 ```{r seq-imputed-logcounts, message=FALSE}
 
+
+nPC = 50
+genes = rownames(sce.seq)
+closestCell.seq = readRDS( paste0( root.dir, "data/8_5/stitching/nn_1/closest_cell_seq2atlas.rds") )
+
 counts.atlas = logcounts(sce.atlas)
 
-logcounts.imputed.seq = lapply(genes, function(current.gene){
+logcounts.imputed.seq = bplapply(genes, function(current.gene){
   current.closestCell = closestCell.seq[current.gene,]
   current.imputed = sapply(1:length(current.closestCell), function(x){
     return(counts.atlas[current.gene, current.closestCell[x]])
   })
   return(current.imputed)
-})
+}, BPPARAM = mcparam)
 logcounts.imputed.seq = do.call(rbind, logcounts.imputed.seq)
 rownames(logcounts.imputed.seq) = genes
 colnames(logcounts.imputed.seq) = colnames(closestCell.seq)
 saveRDS(logcounts.imputed.seq, file =  paste0( root.dir, "data/8_5/stitching/nn_1/imputed_logcounts_seq2atlas.rds"))
-
-```
-
-
-## Corr: imputed VS real
-
-```{r seq-corr, message=FALSE}
-
-counts.seq = assay(sce.seq, "logcounts.area")
-
-stat.seq = bplapply(genes, function(current.gene){
-  current.closestCell = closestCell.seq[current.gene,]
-  
-  # real
-  current.real = sapply(1:length(current.closestCell), function(x){
-    return(counts.seq[current.gene, names(current.closestCell)[x]])
-  })
-  current.real = data.frame(uniqueID = names(current.closestCell), logcounts.real = current.real)
-  
-  #imputed
-  current.imputed = sapply(1:length(current.closestCell), function(x){
-    return(counts.atlas[current.gene, current.closestCell[x]])
-  })
-  current.imputed = data.frame(uniqueID = names(current.closestCell), logcounts.imputed = current.imputed)
-  # joint
-  current.joint = merge(current.real, current.imputed)
-  current.joint = merge(current.joint, meta)
-  
-  stat.all = current.joint %>% group_by(embryo_z) %>%
-    summarise(corr = cor(logcounts.real, logcounts.imputed, method = "pearson"), 
-              mean.sm = mean(logcounts.real))
-  stat.CT = current.joint %>% group_by(embryo_z, celltype_mapped) %>%
-    summarise(corr = cor(logcounts.real, logcounts.imputed, method = "pearson"), 
-              mean.sm = mean(logcounts.real))
-  stat = list(stat.all = stat.all, stat.CT = stat.CT)
-}, BPPARAM = mcparam)
-names(stat.seq) = genes
-saveRDS(stat.seq, file =  paste0( root.dir, "data/8_5/stitching/nn_1/stat_corr_seq2atlas.rds"))
-
 
 ```
 
