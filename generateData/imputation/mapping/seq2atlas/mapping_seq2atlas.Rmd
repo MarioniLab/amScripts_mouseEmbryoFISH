@@ -28,7 +28,7 @@ library(Matrix)
 library(scran)
 library(BiocParallel)
 library(BiocNeighbors)
-ncores = 10
+ncores = 12
 mcparam = MulticoreParam(workers = ncores)
 register(mcparam)
 library(igraph)
@@ -47,7 +47,7 @@ library(dplyr)
 root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
 source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
 
-load_embryo_8.5(dir = "local")
+load_embryo_8.5(dir = "cluster")
 sce.seq = sce[!rownames(sce) == "Xist",]
 assay(sce.seq, "cosineNorm_area") <- cosineNorm(assay(sce.seq, "logcounts_area"))
 
