@@ -9,7 +9,7 @@ script_name=imp_atlas
 
 #CHOOSE PARAMETERS
 #RAM in megabytes
-memory=49000
+memory=65000
 r_command="rusage[mem=${memory}]"
 #num_processors
 nproc=5
