@@ -9,10 +9,10 @@ script_name=imp_atlas
 
 #CHOOSE PARAMETERS
 #RAM in megabytes
-memory=100000
+memory=95000
 r_command="rusage[mem=${memory}]"
 #num_processors
-nproc=12
+nproc=10
 
 smg=/nfs/research1/marioni/alsu/singularity/R1.simg
 script=/nfs/research1/marioni/alsu/spatial/mouse_embryo/amScripts_mouseEmbryoFISH/generateData/imputation/imputation/atlas/run_rmd.R

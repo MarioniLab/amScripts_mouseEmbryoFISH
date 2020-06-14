@@ -28,7 +28,7 @@ library(Matrix)
 library(scran)
 library(BiocParallel)
 library(BiocNeighbors)
-ncores = 12
+ncores = 10
 mcparam = MulticoreParam(workers = ncores)
 register(mcparam)
 library(igraph)
@@ -73,7 +73,7 @@ logcounts.imputation.atlas = bplapply(1:ncol(mapping), function(x){
 }, BPPARAM = mcparam)
 logcounts.imputation.atlas = do.call(cbind, logcounts.imputation.atlas)
 colnames(logcounts.imputation.atlas) = colnames(mapping)
-
+saveRDS(logcounts.imputation.atlas, file =  paste0( root.dir, "data/8_5/stitching/logcounts_imputation_atlas.rds"))
 
 ```
 
