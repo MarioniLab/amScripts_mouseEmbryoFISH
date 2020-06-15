@@ -138,7 +138,7 @@ performance.seq = bplapply(genes, function(current.gene){
   if (length(current.noise.cv) > 0){
     cv.norm.imputed = cv.imputed / mean(current.noise.cv)
   } else {
-    cv.norm.imputed = cv.norm.imputed / NA
+    cv.norm.imputed = cv.imputed / NA
   }
   
   sd.wilcox.imputed = sapply(sd.imputed, function(x){

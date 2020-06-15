@@ -1,0 +1,75 @@
+---
+title: "Get PCA on HVGs."
+output:
+  BiocStyle::html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes  
+  html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: true
+    theme: united
+---
+
+
+# Load dependencies and source data
+
+```{r load_data, message=FALSE}
+
+library(Matrix)
+library(scran)
+library(Rtsne)
+library(ggplot2)
+library(batchelor)
+library(BiocParallel)
+library(irlba)
+
+set.seed(32)
+
+root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/visualization_functions.R"))
+
+# load seq 
+load_embryo_8.5(dir = "cluster")
+sce.seq = sce[!rownames(sce) == "Xist", ]
+
+# load atlas (let's use only 8.5 samples)
+sce.atlas = readRDS(paste0(root.dir, "data/reducedAtlas/E8_25__E8_5.rds"))
+#sce.atlas = sce.atlas[, sce.atlas$stage == "E8.5"]
+meta.atlas = data.frame( colData(sce.atlas) )
+counts.atlas = logcounts(sce.atlas)
+hvgs = getHVGs(sce.atlas, min.mean = 1e-3)
+
+# batch factor
+sce.cosine = assay(sce.atlas, "cosineNorm")
+batchFactor = factor(c(as.character(sce.atlas$sample)))
+
+
+```
+
+
+# Get PCA on HVGs
+
+## Seq genes
+
+```{r pca-hvgs, warning=FALSE}
+
+
+# calc PCs
+mbpca.seq = multiBatchPCA(sce.cosine[rownames(sce.cosine) %in% rownames(sce.seq),], batch = batchFactor, d = 50)
+saveRDS(mbpca.seq, file = paste0(root.dir, "data/atlas_hvgs_pca.rds"))
+
+
+```
+
+
+
+#Session Info
+
+```{r sessinf}
+sessionInfo()
+```
