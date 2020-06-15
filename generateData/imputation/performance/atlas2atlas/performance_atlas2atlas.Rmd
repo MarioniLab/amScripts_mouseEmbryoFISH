@@ -62,9 +62,9 @@ mapping = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_atlas2atlas.rds"
 
 ```
 
-# Get CV distribution (per gene)
+# Get sd/cv distribution (per gene)
 
-```{r seq-imputed-logcounts, message=FALSE}
+```{r seq-noise-distr, message=FALSE}
 
 counts.atlas = logcounts(sce.atlas)
 
@@ -98,7 +98,7 @@ names(noise.allCells) = genes
 
 # Get imputed logcounts stat from atlas (within mapping) 
 
-```{r seq-imputed-logcounts, message=FALSE}
+```{r imputed-stat, message=FALSE}
 
 counts.atlas = counts.atlas[, order(colnames(counts.atlas))]
 mapping = mapping[, order(colnames(mapping))]
