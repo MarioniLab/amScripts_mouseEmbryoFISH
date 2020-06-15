@@ -26,10 +26,6 @@ library(ggplot2)
 library(batchelor)
 library(BiocParallel)
 library(irlba)
-library(cowplot)
-library(ggplot2)
-library(ggpubr)
-library(umap)
 
 set.seed(32)
 
