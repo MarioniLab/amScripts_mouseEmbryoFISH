@@ -21,24 +21,13 @@ output:
 
 library(Matrix)
 library(scran)
-library(igraph)
-library(reshape2)
-library(knitr)
-library(scater)
-library(scales)
-library(biomaRt)
-library(VennDiagram)
-library(RColorBrewer)
-library(tibble)
-library(ggplot2)
-library(tidyverse)
-library(ggpubr)
-library(viridis)
-library(stringr)
-library(ggridges)
-library(ggpubr)
 library(Rtsne)
+library(ggplot2)
 library(batchelor)
+library(BiocParallel)
+library(irlba)
+library(cowplot)
+
 set.seed(32)
 
 root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
@@ -81,8 +70,6 @@ print(tab)
 ## HVGS (atlas)
 
 ```{r batch-effect-hvgs, fig.cap="Batch effect: HVGs.", fig.height=10, fig.wide=TRUE, warning=FALSE}
-
-hvgs = getHVGs(sce.atlas, min.mean = 1e-3)
 
 # calc PCs
 mbpca.hvgs = multiBatchPCA(sce.cosine[rownames(sce.cosine) %in% hvgs,], batch = batchFactor, d = 50)
@@ -184,9 +171,24 @@ p
 
 
 ```
+<!-- # Which sample/batch is good for CT representation -->
+
+<!-- ```{r sample-or-batch-CT-representation, fig.cap="Which samples are good for CT representation.", fig.height=10, fig.wide=TRUE, warning=FALSE} -->
+
+<!-- tab = table(meta.seq.CT$celltype_mapped) -->
+<!-- print(tab) -->
+<!-- rare.CTs = names(tab)[tab < 100] -->
+
+<!-- tab.atlas = data.frame(table( meta.atlas$sample, meta.atlas$celltype) ) -->
+<!-- tab.atlas = tab.atlas[tab.atlas$Var2 %in% rare.CTs,] -->
+
+
+<!-- tab.atlas = data.frame(table( meta.atlas$sequencing.batch, meta.atlas$celltype) ) -->
+<!-- print(tab.atlas) -->
 
 
 
+<!-- ``` -->
 
 #Session Info
 
