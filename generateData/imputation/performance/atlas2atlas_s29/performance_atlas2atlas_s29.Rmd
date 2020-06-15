@@ -183,7 +183,7 @@ for (i in 1:length(performance.seq)){
   colnames(out) = colnames(mapping)
   performance.seq[[i]] = out
 }
-saveRDS(performance.seq, file =  paste0( root.dir, "data/8_5/stitching/performance_atlas2atlas.rds"))
+saveRDS(performance.seq, file =  paste0( root.dir, "data/8_5/stitching/performance_atlas2atlas_s29.rds"))
 
 ```
 
