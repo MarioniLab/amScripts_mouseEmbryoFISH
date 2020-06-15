@@ -1,0 +1,197 @@
+---
+title: "Pipleine to assess which atlas batch or samples to use for imputation."
+output:
+  BiocStyle::html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes  
+  html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: true
+    theme: united
+---
+
+
+# Load dependencies and source data
+
+```{r load_data, message=FALSE}
+
+library(Matrix)
+library(scran)
+library(igraph)
+library(reshape2)
+library(knitr)
+library(scater)
+library(scales)
+library(biomaRt)
+library(VennDiagram)
+library(RColorBrewer)
+library(tibble)
+library(ggplot2)
+library(tidyverse)
+library(ggpubr)
+library(viridis)
+library(stringr)
+library(ggridges)
+library(ggpubr)
+library(ggforce)
+library(pROC)
+library(Rtsne)
+library(batchelor)
+set.seed(32)
+
+root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
+#root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/visualization_functions.R"))
+
+# load seq
+load_embryo_8.5(dir = "cluster")
+sce.seq = sce[!rownames(sce) == "Xist",]
+
+# load atlas
+sce.atlas = readRDS(paste0(root.dir, "data/reducedAtlas/E8_25__E8_5.rds"))
+meta.atlas = data.frame( colData(sce.atlas) )
+counts.atlas = logcounts(sce.atlas)
+hvgs = getHVGs(sce.atlas, min.mean = 1e-3)
+
+# batch factor
+sce.cosine = assay(sce.atlas, "cosineNorm")
+batchFactor = factor(c(as.character(sce.atlas$sample)))
+
+
+```
+
+# Stat
+
+```{r atlas-stat, warning=FALSE}
+
+tab = as.data.frame( table(meta.atlas$sample, meta.atlas$sequencing.batch) )
+colnames(tab) = c("sample", "sequencing.batch", "n.cells")
+tab = merge(tab, data.frame( unique( meta.atlas[, c("sample", "stage")]) ), all.x = T, all.y = F)
+tab = tab[tab$n.cells > 0,]
+print(tab)
+
+
+```
+
+# Batch effect
+
+## HVGS (atlas)
+
+```{r batch-effect-hvgs, fig.cap="Batch effect: HVGs.", fig.height=10, fig.wide=TRUE, warning=FALSE}
+
+hvgs = getHVGs(sce.atlas, min.mean = 1e-3)
+
+# calc PCs
+mbpca.hvgs = multiBatchPCA(sce.cosine[rownames(sce.cosine) %in% hvgs,], batch = batchFactor, d = 50)
+# batch correct
+out = do.call(reducedMNN, mbpca.hvgs)
+corrected.hvgs = out$corrected
+
+# tSNE
+mbpca.hvgs = do.call(rbind, mbpca.hvgs)
+uncorrected.hvgs.tsne = data.frame( Rtsne(mbpca.hvgs, pca = FALSE)$Y )
+uncorrected.hvgs.tsne$cell = rownames(mbpca.hvgs)
+uncorrected.hvgs.tsne = merge(uncorrected.hvgs.tsne, meta.atlas)
+
+corrected.hvgs.tsne = data.frame( Rtsne(corrected.hvgs, pca = FALSE)$Y )
+corrected.hvgs.tsne$cell = rownames(corrected.hvgs)
+corrected.hvgs.tsne = merge(corrected.hvgs.tsne, meta.atlas)
+
+
+# plot
+p1 <- ggplot(uncorrected.hvgs.tsne, aes(x = X1, y = X2, col = factor(sample) )) + 
+  geom_point(size=.5) + 
+  ggtitle("Uncorrected ( on HVGs)") + 
+  scale_color_Publication() + 
+  facet_wrap(~sequencing.batch)
+p2 <- ggplot(corrected.hvgs.tsne, aes(x = X1, y = X2, col = factor(sample) )) + 
+  geom_point(size=.5) + 
+  ggtitle("Corrected ( on HVGs)") +
+  scale_color_Publication() + 
+  facet_wrap(~sequencing.batch)
+
+p <- ggarrange(p1,p2,nrow=2,common.legend = T)
+p
+
+p1 <- ggplot(uncorrected.hvgs.tsne, aes(x = X1, y = X2, col = factor(sequencing.batch) )) + 
+  geom_point(size=.5) + 
+  ggtitle("Uncorrected ( on HVGs)") + 
+  scale_color_Publication()
+p2 <- ggplot(corrected.hvgs.tsne, aes(x = X1, y = X2, col = factor(sequencing.batch) )) + 
+  geom_point(size=.5) + 
+  ggtitle("Corrected ( on HVGs)") +
+  scale_color_Publication()
+
+p <- ggarrange(p1,p2,common.legend = T)
+p
+
+
+```
+
+## Seq genes
+
+```{r batch-effect-seq, fig.cap="Batch effect: Seq genes.", fig.height=10, fig.wide=TRUE, warning=FALSE}
+
+
+# calc PCs
+mbpca.seq = multiBatchPCA(sce.cosine[rownames(sce.cosine) %in% rownames(sce.seq),], batch = batchFactor, d = 50)
+# batch correct
+out = do.call(reducedMNN, mbpca.seq)
+corrected.seq = out$corrected
+
+# tSNE
+mbpca.seq = do.call(rbind, mbpca.seq)
+uncorrected.seq.tsne = data.frame( Rtsne(mbpca.seq, pca = FALSE)$Y )
+uncorrected.seq.tsne$cell = rownames(mbpca.seq)
+uncorrected.seq.tsne = merge(uncorrected.seq.tsne, meta.atlas)
+
+corrected.seq.tsne = data.frame( Rtsne(corrected.seq, pca = FALSE)$Y )
+corrected.seq.tsne$cell = rownames(corrected.seq)
+corrected.seq.tsne = merge(corrected.seq.tsne, meta.atlas)
+
+
+# plot
+p1 <- ggplot(uncorrected.seq.tsne, aes(x = X1, y = X2, col = factor(sample) )) + 
+  geom_point(size=.4) + 
+  ggtitle("Uncorrected ( on seq genes)") + 
+  scale_color_Publication() + 
+  facet_wrap(~sequencing.batch)
+p2 <- ggplot(corrected.seq.tsne, aes(x = X1, y = X2, col = factor(sample) )) + 
+  geom_point(size=.4) + 
+  ggtitle("Corrected ( on seq genes)") +
+  scale_color_Publication() + 
+  facet_wrap(~sequencing.batch)
+
+p <- ggarrange(p1,p2,nrow=2,common.legend = T)
+p
+
+p1 <- ggplot(uncorrected.seq.tsne, aes(x = X1, y = X2, col = factor(sequencing.batch) )) + 
+  geom_point(size=.4) + 
+  ggtitle("Uncorrected ( on seq genes)") + 
+  scale_color_Publication()
+p2 <- ggplot(corrected.seq.tsne, aes(x = X1, y = X2, col = factor(sequencing.batch) )) + 
+  geom_point(size=.4) + 
+  ggtitle("Corrected ( on seq genes)") +
+  scale_color_Publication()
+
+p <- ggarrange(p1,p2,common.legend = T)
+p
+
+
+
+
+```
+
+
+
+
+#Session Info
+
+```{r sessinf}
+sessionInfo()
+```
