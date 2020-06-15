@@ -61,7 +61,7 @@ batchFactor = factor(c(as.character(sce.atlas$sample)))
 
 # calc PCs
 mbpca.seq = multiBatchPCA(sce.cosine[rownames(sce.cosine) %in% rownames(sce.seq),], batch = batchFactor, d = 50)
-write.table(mbpca.seq, file = paste0(root.dir, "data/atlas_hvgs_pca.tab"), row.names = F, col.names = T, sep = "\t")
+saveRDS(mbpca.seq, file = paste0(root.dir, "data/atlas_hvgs_pca.tab"))
 
 
 ```
