@@ -29,6 +29,7 @@ library(irlba)
 library(cowplot)
 library(ggplot2)
 library(ggpubr)
+library(umap)
 
 set.seed(32)
 
@@ -79,24 +80,26 @@ mbpca.hvgs = multiBatchPCA(sce.cosine[rownames(sce.cosine) %in% hvgs,], batch = 
 out = do.call(reducedMNN, mbpca.hvgs)
 corrected.hvgs = out$corrected
 
-# tSNE
+# get UMAP coords
 mbpca.hvgs = do.call(rbind, mbpca.hvgs)
-uncorrected.hvgs.tsne = data.frame( Rtsne(mbpca.hvgs, pca = FALSE)$Y )
-uncorrected.hvgs.tsne$cell = rownames(mbpca.hvgs)
-uncorrected.hvgs.tsne = merge(uncorrected.hvgs.tsne, meta.atlas)
+uncorrected.hvgs.umap = umap(mbpca.hvgs, min_dist = 0.7)
+uncorrected.hvgs.umap = as.data.frame( uncorrected.hvgs.umap$layout )
+uncorrected.hvgs.umap$cell = rownames(mbpca.hvgs)
+uncorrected.hvgs.umap = merge(uncorrected.hvgs.umap, meta.atlas)
 
-corrected.hvgs.tsne = data.frame( Rtsne(corrected.hvgs, pca = FALSE)$Y )
-corrected.hvgs.tsne$cell = rownames(corrected.hvgs)
-corrected.hvgs.tsne = merge(corrected.hvgs.tsne, meta.atlas)
+corrected.hvgs.umap = umap(corrected.hvgs, min_dist = 0.7)
+corrected.hvgs.umap = as.data.frame(corrected.hvgs.umap$layout)
+corrected.hvgs.umap$cell = rownames(corrected.hvgs)
+corrected.hvgs.umap = merge(corrected.hvgs.umap, meta.atlas)
 
 
 # plot
-p1 <- ggplot(uncorrected.hvgs.tsne, aes(x = X1, y = X2, col = factor(sample) )) + 
+p1 <- ggplot(uncorrected.hvgs.umap, aes(x = X1, y = X2, col = factor(sample) )) + 
   geom_point(size=.5) + 
   ggtitle("Uncorrected ( on HVGs)") + 
   scale_color_Publication() + 
   facet_wrap(~sequencing.batch)
-p2 <- ggplot(corrected.hvgs.tsne, aes(x = X1, y = X2, col = factor(sample) )) + 
+p2 <- ggplot(corrected.hvgs.umap, aes(x = X1, y = X2, col = factor(sample) )) + 
   geom_point(size=.5) + 
   ggtitle("Corrected ( on HVGs)") +
   scale_color_Publication() + 
@@ -105,11 +108,11 @@ p2 <- ggplot(corrected.hvgs.tsne, aes(x = X1, y = X2, col = factor(sample) )) +
 p <- ggarrange(p1,p2,nrow=2,common.legend = T)
 p
 
-p1 <- ggplot(uncorrected.hvgs.tsne, aes(x = X1, y = X2, col = factor(sequencing.batch) )) + 
+p1 <- ggplot(uncorrected.hvgs.umap, aes(x = X1, y = X2, col = factor(sequencing.batch) )) + 
   geom_point(size=.5) + 
   ggtitle("Uncorrected ( on HVGs)") + 
   scale_color_Publication()
-p2 <- ggplot(corrected.hvgs.tsne, aes(x = X1, y = X2, col = factor(sequencing.batch) )) + 
+p2 <- ggplot(corrected.hvgs.umap, aes(x = X1, y = X2, col = factor(sequencing.batch) )) + 
   geom_point(size=.5) + 
   ggtitle("Corrected ( on HVGs)") +
   scale_color_Publication()
@@ -131,24 +134,26 @@ mbpca.seq = multiBatchPCA(sce.cosine[rownames(sce.cosine) %in% rownames(sce.seq)
 out = do.call(reducedMNN, mbpca.seq)
 corrected.seq = out$corrected
 
-# tSNE
+# get UMAP coords
 mbpca.seq = do.call(rbind, mbpca.seq)
-uncorrected.seq.tsne = data.frame( Rtsne(mbpca.seq, pca = FALSE)$Y )
-uncorrected.seq.tsne$cell = rownames(mbpca.seq)
-uncorrected.seq.tsne = merge(uncorrected.seq.tsne, meta.atlas)
 
-corrected.seq.tsne = data.frame( Rtsne(corrected.seq, pca = FALSE)$Y )
-corrected.seq.tsne$cell = rownames(corrected.seq)
-corrected.seq.tsne = merge(corrected.seq.tsne, meta.atlas)
+uncorrected.seq.umap = umap(mbpca.seq, min_dist = 0.7)
+uncorrected.seq.umap = as.data.frame( uncorrected.seq.umap$layout )
+uncorrected.seq.umap$cell = rownames(mbpca.seq)
+uncorrected.seq.umap = merge(uncorrected.seq.umap, meta.atlas)
 
+corrected.seq.umap = umap(corrected.seq, min_dist = 0.7)
+corrected.seq.umap = as.data.frame(corrected.seq.umap$layout)
+corrected.seq.umap$cell = rownames(corrected.seq)
+corrected.seq.umap = merge(corrected.seq.umap, meta.atlas)
 
 # plot
-p1 <- ggplot(uncorrected.seq.tsne, aes(x = X1, y = X2, col = factor(sample) )) + 
+p1 <- ggplot(uncorrected.seq.umap, aes(x = V1, y = V2, col = factor(sample) )) + 
   geom_point(size=.4) + 
   ggtitle("Uncorrected ( on seq genes)") + 
   scale_color_Publication() + 
   facet_wrap(~sequencing.batch)
-p2 <- ggplot(corrected.seq.tsne, aes(x = X1, y = X2, col = factor(sample) )) + 
+p2 <- ggplot(corrected.seq.umap, aes(x = V1, y = V2, col = factor(sample) )) + 
   geom_point(size=.4) + 
   ggtitle("Corrected ( on seq genes)") +
   scale_color_Publication() + 
@@ -157,17 +162,19 @@ p2 <- ggplot(corrected.seq.tsne, aes(x = X1, y = X2, col = factor(sample) )) +
 p <- ggarrange(p1,p2,nrow=2,common.legend = T)
 p
 
-p1 <- ggplot(uncorrected.seq.tsne, aes(x = X1, y = X2, col = factor(sequencing.batch) )) + 
+p1 <- ggplot(uncorrected.seq.umap, aes(x = V1, y = V2, col = factor(sequencing.batch) )) + 
   geom_point(size=.4) + 
   ggtitle("Uncorrected ( on seq genes)") + 
   scale_color_Publication()
-p2 <- ggplot(corrected.seq.tsne, aes(x = X1, y = X2, col = factor(sequencing.batch) )) + 
+p2 <- ggplot(corrected.seq.umap, aes(x = V1, y = V2, col = factor(sequencing.batch) )) + 
   geom_point(size=.4) + 
   ggtitle("Corrected ( on seq genes)") +
   scale_color_Publication()
 
 p <- ggarrange(p1,p2,common.legend = T)
 p
+
+
 
 
 
