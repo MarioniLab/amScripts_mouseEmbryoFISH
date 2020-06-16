@@ -48,18 +48,25 @@ source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
 
 load_embryo_8.5(dir = "cluster")
 #load_embryo_8.5(dir = "local")
-sce.seq = sce[!rownames(sce) == "Xist", sce$embryo == "embryo1" & sce$z == 2]
+sce.seq = sce[!rownames(sce) == "Xist", ]
 counts.seq = assay(sce.seq, "logcounts_area")
 # load atlas 
 sce.atlas = readRDS(paste0(root.dir, "data/reducedAtlas/E8_25__E8_5.rds"))
-sce.atlas = sce.atlas[rownames(sce.seq), sce.atlas$stage == "E8.5" & sce.atlas$sample == 29]
+sce.atlas = sce.atlas[rownames(sce.seq), sce.atlas$stage == "E8.5"]
 
 # order seq and atlas (in case, cant hurt, had troubles b4)
 sce.seq = sce.seq[order(rownames(sce.seq)),]
 sce.atlas = sce.atlas[order(rownames(sce.atlas)),]
 
 # load mapping
-mapping = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_s29__embryo1z2.rds"))
+mapping.embryo1z2 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo1z2.rds"))
+mapping.embryo1z5 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo1z5.rds"))
+mapping.embryo2z2 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo2z2.rds"))
+mapping.embryo2z5 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo2z5.rds"))
+mapping.embryo3z2 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo3z2.rds"))
+mapping.embryo3z5 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo3z5.rds"))
+
+mapping = cbind(mapping.embryo1z2, mapping.embryo1z5, mapping.embryo2z2, mapping.embryo2z5, mapping.embryo3z2, mapping.embryo3z5)
 
 ```
 
@@ -184,7 +191,7 @@ for (i in 1:length(performance.seq)){
   colnames(out) = colnames(mapping)
   performance.seq[[i]] = out
 }
-saveRDS(performance.seq, file =  paste0( root.dir, "data/8_5/stitching/performance_seq2atlas_s29__embryo1z2.rds"))
+saveRDS(performance.seq, file =  paste0( root.dir, "data/8_5/stitching/performance_seq2atlas.rds"))
 
 ```
 
