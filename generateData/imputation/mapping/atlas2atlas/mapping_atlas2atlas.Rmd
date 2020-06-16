@@ -52,7 +52,7 @@ assay(sce.seq, "cosineNorm_area") <- cosineNorm(assay(sce.seq, "logcounts_area")
 
 # load atlas 
 sce.atlas = readRDS(paste0(root.dir, "data/reducedAtlas/E8_25__E8_5.rds"))
-sce.atlas = sce.atlas[rownames(sce.seq), ]
+sce.atlas = sce.atlas[rownames(sce.seq), sce.atlas$stage == "E8.5"]
 
 # order seq and atlas (in case, cant hurt, had troubles b4)
 sce.seq = sce.seq[order(rownames(sce.seq)),]
@@ -91,27 +91,6 @@ saveRDS(mapping, file =  paste0( root.dir, "data/8_5/stitching/mapping_atlas2atl
 
 ```
 
-# Get imputed logcounts from atlas (within mapping)
-
-```{r seq-imputed-logcounts, message=FALSE}
-
-counts.atlas = logcounts(sce.atlas)
-
-logcounts.performance.atlas = bplapply(genes, function(current.gene){
-  current.atlas = counts.atlas[current.gene,]
-  current.mapping = mapping[grepl(current.gene, rownames(mapping)),]
-  
-  current.imputed = sapply(1:ncol(current.mapping), function(x){
-    return( mean( current.atlas[current.mapping[,x]], na.rm = T) )
-  })
-  return(current.imputed)
-}, BPPARAM = mcparam)
-logcounts.performance.atlas = do.call(rbind, logcounts.performance.atlas)
-rownames(logcounts.performance.atlas) = genes
-colnames(logcounts.performance.atlas) = colnames(mapping)
-saveRDS(logcounts.performance.atlas, file =  paste0( root.dir, "data/8_5/stitching/logcounts_performance_atlas.rds"))
-
-```
 
 
 #Session Info
