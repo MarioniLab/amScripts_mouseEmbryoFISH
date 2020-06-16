@@ -51,7 +51,7 @@ sce.seq = sce[!rownames(sce) == "Xist",]
 counts.seq = assay(sce.seq, "logcounts_area")
 # load atlas 
 sce.atlas = readRDS(paste0(root.dir, "data/reducedAtlas/E8_25__E8_5.rds"))
-sce.atlas = sce.atlas[rownames(sce.seq), sce.atlas$stage == "E8.5" & & sce.atlas$sample == 29]
+sce.atlas = sce.atlas[rownames(sce.seq), sce.atlas$stage == "E8.5" & sce.atlas$sample == 29]
 
 # order seq and atlas (in case, cant hurt, had troubles b4)
 sce.seq = sce.seq[order(rownames(sce.seq)),]
