@@ -40,6 +40,7 @@ library(irlba)
 library(batchelor)
 library(tibble)
 library(dplyr)
+library(purrr)
 
 #root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
 root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
@@ -50,14 +51,14 @@ sce.seq = sce[!rownames(sce) == "Xist",]
 
 # load atlas 
 sce.atlas = readRDS(paste0(root.dir, "data/reducedAtlas/E8_25__E8_5.rds"))
-sce.atlas = sce.atlas[rownames(sce.seq), ]
+sce.atlas = sce.atlas[rownames(sce.seq), sce.atlas$stage == "E8.5"]
 
 # order seq and atlas (in case, cant hurt, had troubles b4)
 sce.seq = sce.seq[order(rownames(sce.seq)),]
 sce.atlas = sce.atlas[order(rownames(sce.atlas)),]
 
 # load mapping
-mapping = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_atlas2atlas.rds"))
+mapping = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_atlas2atlas_s29.rds"))
 
 
 ```
@@ -182,7 +183,7 @@ for (i in 1:length(performance.seq)){
   colnames(out) = colnames(mapping)
   performance.seq[[i]] = out
 }
-saveRDS(performance.seq, file =  paste0( root.dir, "data/8_5/stitching/performance_atlas2atlas.rds"))
+saveRDS(performance.seq, file =  paste0( root.dir, "data/8_5/stitching/performance_atlas2atlas_s29.rds"))
 
 ```
 
