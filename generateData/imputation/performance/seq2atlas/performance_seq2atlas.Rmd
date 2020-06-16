@@ -47,7 +47,7 @@ root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
 source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
 
 load_embryo_8.5(dir = "cluster")
-sce.seq = sce[!rownames(sce) == "Xist",]
+sce.seq = sce[!rownames(sce) == "Xist", sce$embryo == "embryo1" & sce$z == 2]
 counts.seq = assay(sce.seq, "logcounts_area")
 # load atlas 
 sce.atlas = readRDS(paste0(root.dir, "data/reducedAtlas/E8_25__E8_5.rds"))
@@ -104,6 +104,7 @@ mapping = mapping[, order(colnames(mapping))]
 counts.seq = counts.seq[, order(colnames(counts.seq))]
 
 performance.seq = bplapply(genes, function(current.gene){
+  print(current.gene)
   current.atlas = counts.atlas[rownames(counts.atlas) == current.gene,]
   current.seq = counts.seq[rownames(counts.seq) == current.gene,]
   current.mapping = mapping[grepl(current.gene, rownames(mapping)),]
