@@ -47,6 +47,7 @@ root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
 source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
 
 load_embryo_8.5(dir = "cluster")
+#load_embryo_8.5(dir = "local")
 sce.seq = sce[!rownames(sce) == "Xist", sce$embryo == "embryo1" & sce$z == 2]
 counts.seq = assay(sce.seq, "logcounts_area")
 # load atlas 
@@ -98,13 +99,12 @@ names(noise.allCells) = genes
 
 # Get imputed logcounts stat from atlas (within mapping) 
 
-```{r imputed-stat, message=FALSE}
+```{r imputed-stat, message=FALSE, warning=FALSE}
 
 mapping = mapping[, order(colnames(mapping))]
 counts.seq = counts.seq[, order(colnames(counts.seq))]
 
 performance.seq = bplapply(genes, function(current.gene){
-  print(current.gene)
   current.atlas = counts.atlas[rownames(counts.atlas) == current.gene,]
   current.seq = counts.seq[rownames(counts.seq) == current.gene,]
   current.mapping = mapping[grepl(current.gene, rownames(mapping)),]
@@ -128,14 +128,24 @@ performance.seq = bplapply(genes, function(current.gene){
   
   # norm
   current.noise = noise.allCells[names(noise.allCells) == current.gene]
+  current.noise.sd = current.noise[[1]]$sd[!is.na(current.noise[[1]]$sd)]
+  current.noise.cv = current.noise[[1]]$cv[!is.na(current.noise[[1]]$cv)]
   
   # imputed sd-norm/cv-norm
-  sd.norm.imputed = sd.imputed / mean(current.noise[[1]]$sd)
-  cv.norm.imputed = cv.imputed / mean(current.noise[[1]]$cv)
+  if (length(current.noise.sd) > 0){
+    sd.norm.imputed = sd.imputed / mean(current.noise.sd)
+  } else {
+    sd.norm.imputed = sd.imputed / NA
+  }
+  if (length(current.noise.cv) > 0){
+    cv.norm.imputed = cv.imputed / mean(current.noise.cv)
+  } else {
+    cv.norm.imputed = cv.imputed / NA
+  }
   
   sd.wilcox.imputed = sapply(sd.imputed, function(x){
-    if (!is.na(x)){
-      out = wilcox.test(x, current.noise[[1]]$sd[!is.na(current.noise[[1]]$sd)])
+    if (!is.na(x) & (length(current.noise.sd) > 0)){
+      out = wilcox.test(x, current.noise.sd)
       out = out$p.value
     } 
     else {
@@ -144,8 +154,8 @@ performance.seq = bplapply(genes, function(current.gene){
     return (out)
   })
   cv.wilcox.imputed = sapply(cv.imputed, function(x){
-    if (!is.na(x)){
-      out = wilcox.test(x, current.noise[[1]]$cv[!is.na(current.noise[[1]]$cv)])
+    if (!is.na(x) & (length(current.noise.cv) > 0)){
+      out = wilcox.test(x, current.noise.cv)
       out = out$p.value
     } 
     else {
