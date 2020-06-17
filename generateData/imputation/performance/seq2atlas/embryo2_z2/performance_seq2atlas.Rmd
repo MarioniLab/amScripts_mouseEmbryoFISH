@@ -1,0 +1,200 @@
+---
+title: "Mapping performance seq2atlas"
+output:
+  BiocStyle::html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes  
+  html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: true
+    theme: united
+---
+
+Settings:
+
+nn = 25
+
+# Load dependencies and source data
+
+```{r load_data, message=FALSE}
+
+library(Matrix)
+library(scran)
+library(BiocParallel)
+library(BiocNeighbors)
+ncores = 5
+mcparam = MulticoreParam(workers = ncores)
+register(mcparam)
+library(igraph)
+library(reshape2)
+library(knitr)
+library(scater)
+library(scales)
+library(biomaRt)
+library(batchelor)
+library(irlba)
+library(batchelor)
+library(tibble)
+library(dplyr)
+library(purrr)
+
+#root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
+root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
+
+load_embryo_8.5(dir = "cluster")
+#load_embryo_8.5(dir = "local")
+sce.seq = sce[!rownames(sce) == "Xist", ]
+counts.seq = assay(sce.seq, "logcounts_area")
+# load atlas 
+sce.atlas = readRDS(paste0(root.dir, "data/reducedAtlas/E8_25__E8_5.rds"))
+sce.atlas = sce.atlas[rownames(sce.seq), sce.atlas$stage == "E8.5"]
+
+# order seq and atlas (in case, cant hurt, had troubles b4)
+sce.seq = sce.seq[order(rownames(sce.seq)),]
+sce.atlas = sce.atlas[order(rownames(sce.atlas)),]
+
+# load mapping
+mapping = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo2z2.rds"))
+sce.seq = sce.seq[, colnames(sce.seq) %in% colnames(mapping)]
+counts.seq = counts.seq[, colnames(counts.seq) %in% colnames(mapping)]
+
+```
+
+# Get CV distribution (per gene)
+
+```{r get-noise-distr, message=FALSE}
+
+counts.atlas = logcounts(sce.atlas)
+
+genes = rownames(sce.seq)
+K = 100
+n.neigh = 25
+
+noise.allCells = bplapply(genes, function(current.gene){
+  current.mapping = mapping[grepl(current.gene, rownames(mapping)),]
+  unq.cells = unique(c(current.mapping))
+  current.atlas = counts.atlas[current.gene, colnames(counts.atlas) %in% unq.cells]
+  sd.perGene = lapply(1:K, function(x){
+    rand.permutation = sample(current.atlas, n.neigh, replace = FALSE)
+    return(sd(rand.permutation))
+  })
+  sd.perGene = do.call(cbind, sd.perGene)
+  
+  cv.perGene = lapply(1:K, function(x){
+    rand.permutation = sample(current.atlas, n.neigh, replace = FALSE)
+    return(sd(rand.permutation)/mean(rand.permutation))
+  })
+  cv.perGene = do.call(cbind, cv.perGene)
+  
+  noise.perGene = list(sd = sd.perGene, cv = cv.perGene)
+  return(noise.perGene)
+}, BPPARAM = mcparam)
+names(noise.allCells) = genes
+
+
+```
+
+# Get imputed logcounts stat from atlas (within mapping) 
+
+```{r imputed-stat, message=FALSE, warning=FALSE}
+
+mapping = mapping[, order(colnames(mapping))]
+counts.seq = counts.seq[, order(colnames(counts.seq))]
+
+performance.seq = bplapply(genes, function(current.gene){
+  current.atlas = counts.atlas[rownames(counts.atlas) == current.gene,]
+  current.seq = counts.seq[rownames(counts.seq) == current.gene,]
+  current.mapping = mapping[grepl(current.gene, rownames(mapping)),]
+  
+  # real 
+  real = current.seq
+  # imputed mean
+  mean.imputed = sapply(1:ncol(current.mapping), function(x){
+    return( mean( current.atlas[current.mapping[,x]], na.rm = T) )
+  })
+  # imputed median
+  median.imputed = sapply(1:ncol(current.mapping), function(x){
+    return( median( current.atlas[current.mapping[,x]], na.rm = T) )
+  })
+  # imputed sd
+  sd.imputed = sapply(1:ncol(current.mapping), function(x){
+    return( sd( current.atlas[current.mapping[,x]], na.rm = T) )
+  })
+  # imputed cv
+  cv.imputed = sd.imputed / mean.imputed
+  
+  # norm
+  current.noise = noise.allCells[names(noise.allCells) == current.gene]
+  current.noise.sd = current.noise[[1]]$sd[!is.na(current.noise[[1]]$sd)]
+  current.noise.cv = current.noise[[1]]$cv[!is.na(current.noise[[1]]$cv)]
+  
+  # imputed sd-norm/cv-norm
+  if (length(current.noise.sd) > 0){
+    sd.norm.imputed = sd.imputed / mean(current.noise.sd)
+  } else {
+    sd.norm.imputed = sd.imputed / NA
+  }
+  if (length(current.noise.cv) > 0){
+    cv.norm.imputed = cv.imputed / mean(current.noise.cv)
+  } else {
+    cv.norm.imputed = cv.imputed / NA
+  }
+  
+  sd.wilcox.imputed = sapply(sd.imputed, function(x){
+    if (!is.na(x) & (length(current.noise.sd) > 0)){
+      out = wilcox.test(x, current.noise.sd)
+      out = out$p.value
+    } 
+    else {
+      out = NA
+    }
+    return (out)
+  })
+  cv.wilcox.imputed = sapply(cv.imputed, function(x){
+    if (!is.na(x) & (length(current.noise.cv) > 0)){
+      out = wilcox.test(x, current.noise.cv)
+      out = out$p.value
+    } 
+    else {
+      out = NA
+    }
+    return (out)
+  })
+  
+  out = list(real = real,
+             mean.imputed = mean.imputed,
+             median.imputed = median.imputed,
+             sd.imputed = sd.imputed, 
+             cv.imputed = cv.imputed,
+             sd.norm.imputed = sd.norm.imputed,
+             cv.norm.imputed = cv.norm.imputed,
+             sd.wilcox.imputed = sd.wilcox.imputed,
+             cv.wilcox.imputed = cv.wilcox.imputed)
+  return(out)
+}, BPPARAM = mcparam)
+names(performance.seq) = genes
+performance.seq = transpose(performance.seq)
+for (i in 1:length(performance.seq)){
+  out = performance.seq[[i]]
+  out = do.call(rbind, out)
+  rownames(out) = genes
+  colnames(out) = colnames(mapping)
+  performance.seq[[i]] = out
+}
+saveRDS(performance.seq, file =  paste0( root.dir, "data/8_5/stitching/performance_seq2atlas_embryo2z2.rds"))
+
+```
+
+
+#Session Info
+
+```{r sessinf}
+
+sessionInfo()
+
+```
