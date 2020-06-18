@@ -1,0 +1,89 @@
+---
+title: "Imputation - atlas."
+output:
+  BiocStyle::html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes  
+  html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: true
+    theme: united
+---
+
+Settings:
+
+nPC = 100
+
+nn = 25
+
+# Load dependencies and source data
+
+```{r load_data, message=FALSE}
+
+library(Matrix)
+library(scran)
+library(BiocParallel)
+library(BiocNeighbors)
+ncores = 5
+mcparam = MulticoreParam(workers = ncores)
+register(mcparam)
+library(igraph)
+library(reshape2)
+library(knitr)
+library(scater)
+library(scales)
+library(biomaRt)
+library(batchelor)
+library(irlba)
+library(batchelor)
+library(tibble)
+library(dplyr)
+
+root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
+
+# load atlas 
+sce.atlas = readRDS(paste0(root.dir, "data/reducedAtlas/E8_25__E8_5.rds"))
+sce.atlas = sce.atlas[, sce.atlas$stage == "E8.5"]
+counts.atlas = logcounts(sce.atlas)
+
+# load mapping
+mapping = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_atlas2atlas.rds"))
+
+```
+
+# Impute atlas
+
+```{r impute-atlas, message=FALSE}
+
+getCounts = function(cells, weights){ 
+  current.counts = counts.atlas[,match(cells, colnames(counts.atlas))] 
+  current.counts = ( current.counts %*% weights )/sum(weights)
+  return(current.counts) 
+} 
+
+logcounts.imputation.atlas = bplapply(1:ncol(mapping), function(x){
+  current.cell = mapping[,x]
+  current.cell.stat = table(current.cell)
+  current.counts = getCounts(names(current.cell.stat), as.numeric( current.cell.stat )) 
+  return(current.counts)
+}, BPPARAM = mcparam)
+logcounts.imputation.atlas = do.call(cbind, logcounts.imputation.atlas)
+colnames(logcounts.imputation.atlas) = colnames(mapping)
+saveRDS(logcounts.imputation.atlas, file =  paste0( root.dir, "data/8_5/stitching/imputation_atlas2atlas.rds"))
+
+```
+
+
+
+#Session Info
+
+```{r sessinf}
+
+sessionInfo()
+
+```
