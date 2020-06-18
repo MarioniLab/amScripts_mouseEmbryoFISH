@@ -106,6 +106,7 @@ counts.imputed = bplapply(genes, function(current.gene){
   return(mean.imputed)
 }, BPPARAM = mcparam)
 counts.imputed = do.call(rbind, counts.imputed)
+colnames(counts.imputed) = colnames(mapping)
 rownames(counts.imputed) = genes
 
 # de-noise seq

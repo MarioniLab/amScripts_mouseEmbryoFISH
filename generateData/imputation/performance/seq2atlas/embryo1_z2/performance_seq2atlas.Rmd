@@ -106,6 +106,7 @@ counts.imputed = bplapply(genes, function(current.gene){
   return(mean.imputed)
 }, BPPARAM = mcparam)
 counts.imputed = do.call(rbind, counts.imputed)
+colnames(counts.imputed) = colnames(mapping)
 rownames(counts.imputed) = genes
 
 # de-noise seq
@@ -113,7 +114,6 @@ denoised.seq.nn_1.mean = denoisingCounts(counts.seq, meta, neigh.net, 1, "mean",
 denoised.seq.nn_1.median = denoisingCounts(counts.seq, meta, neigh.net, 1, "median", mcparam)
 denoised.seq.nn_2.mean = denoisingCounts(counts.seq, meta, neigh.net, 2, "mean", mcparam)
 denoised.seq.nn_2.median = denoisingCounts(counts.seq, meta, neigh.net, 2, "median", mcparam)
-
 
 # de-noise seq
 denoised.imputed.nn_1.mean = denoisingCounts(counts.imputed, meta, neigh.net, 1, "mean", mcparam)
