@@ -257,6 +257,7 @@ denoisingCounts = function(counts, meta, neigh.net, n.neigh, avg_metric, mcparam
     }
   }, BPPARAM = mcparam)
   denoised.counts.perCell = do.call(cbind, denoised.counts.perCell)
+  colnames(denoised.counts.perCell) = colnames(counts)
   return(denoised.counts.perCell)
 }
 
