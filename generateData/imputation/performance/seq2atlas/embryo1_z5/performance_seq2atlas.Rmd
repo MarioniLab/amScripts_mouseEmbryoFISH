@@ -60,7 +60,7 @@ sce.seq = sce.seq[order(rownames(sce.seq)),]
 sce.atlas = sce.atlas[order(rownames(sce.atlas)),]
 
 # load mapping
-mapping = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo3z5.rds"))
+mapping = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo1z5.rds"))
 sce.seq = sce.seq[, colnames(sce.seq) %in% colnames(mapping)]
 counts.seq = assay(sce.seq, "logcounts_area")
 meta = data.frame( colData(sce.seq))
@@ -134,7 +134,7 @@ performance.seq = list(counts.seq = counts.seq,
                        denoised.imputed.nn_2.median = denoised.imputed.nn_2.median
                        )
 
-saveRDS(performance.seq, file =  paste0( root.dir, "data/8_5/stitching/performance_seq2atlas_embryo3z5.rds"))
+saveRDS(performance.seq, file =  paste0( root.dir, "data/8_5/stitching/performance_seq2atlas_embryo1z5.rds"))
 
 ```
 
