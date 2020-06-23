@@ -311,6 +311,7 @@ denoisingBinaryCounts = function(counts, meta, neigh.net, n.neigh, mcparam){
   }, BPPARAM = mcparam)
   denoised.counts.perCell = do.call(cbind, denoised.counts.perCell)
   colnames(denoised.counts.perCell) = colnames(counts)
+  rownames(denoised.counts.perCell) = rownames(counts)
   return(denoised.counts.perCell)
 }
 
