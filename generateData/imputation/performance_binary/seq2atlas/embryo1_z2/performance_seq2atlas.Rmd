@@ -1,0 +1,193 @@
+---
+title: "Mapping performance seq2atlas"
+output:
+  BiocStyle::html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes  
+  html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: true
+    theme: united
+---
+
+Settings:
+
+nn = 25
+
+# Load dependencies and source data
+
+```{r load_data, message=FALSE}
+
+library(Matrix)
+library(scran)
+library(BiocParallel)
+library(BiocNeighbors)
+ncores = 5
+mcparam = MulticoreParam(workers = ncores)
+register(mcparam)
+library(igraph)
+library(reshape2)
+library(knitr)
+library(scater)
+library(scales)
+library(biomaRt)
+library(batchelor)
+library(irlba)
+library(batchelor)
+library(tibble)
+library(dplyr)
+library(purrr)
+
+#root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
+root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
+
+load_embryo_8.5(dir = "cluster")
+sce.seq = sce[!rownames(sce) == "Xist", ]
+
+# load atlas 
+sce.atlas = readRDS(paste0(root.dir, "data/reducedAtlas/E8_25__E8_5.rds"))
+sce.atlas = sce.atlas[rownames(sce.seq), sce.atlas$stage == "E8.5"]
+#counts.atlas = logcounts(sce.atlas)
+
+# order seq and atlas (in case, cant hurt, had troubles b4)
+sce.seq = sce.seq[order(rownames(sce.seq)),]
+sce.atlas = sce.atlas[order(rownames(sce.atlas)),]
+
+# load mapping
+mapping = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo1z2.rds"))
+sce.seq = sce.seq[, colnames(sce.seq) %in% colnames(mapping)]
+#counts.seq = assay(sce.seq, "logcounts_area")
+meta = data.frame( colData(sce.seq))
+meta.CT = readRDS(paste0(root.dir, "data/8_5/source/E8.5_treeMNN_denoised.Rds"))
+colnames(meta.CT)[colnames(meta.CT) == "cell"] <- "uniqueID"
+meta = merge(meta, meta.CT, all.x = T, all.y = F)
+
+
+# neigh.net
+neigh.net = readRDS(paste0(root.dir, "data/8_5/source/E8.5_neighbourGraph_1.3.Rds"))
+
+```
+
+
+# Get performance stat:
+
+1) seq-binary
+
+2) seq-cosine
+
+3) seq-binary-denoised-1
+
+4) seq-binary-denoised-2
+
+5) imputed-binary-mode
+
+6) imputed-binary-mean
+
+7) imputed-cosine-mean
+
+8) imputed-binary-mode-denoised-1
+
+9) imputed-binary-mode-denoised-2
+
+```{r imputed-stat, message=FALSE, warning=FALSE}
+
+mapping = mapping[, order(colnames(mapping))]
+sce.seq = sce.seq[,order(colnames(sce.seq))]
+genes = rownames(sce.seq)
+
+# seq
+counts.seq = counts(sce.seq)
+getBinarized = function(x){
+  return(as.numeric(x >= 1))  
+}
+counts.binary.seq = t( apply(counts.seq, 1, function(x) getBinarized(x)) )
+rownames(counts.binary.seq) = rownames(sce.seq)
+colnames(counts.binary.seq) = colnames(sce.seq)
+  
+counts.cosine.seq = as.matrix( cosineNorm(assay(sce.seq, "logcounts_area")) )
+counts.binary.seq.denoised_1 = denoisingBinaryCounts(counts.binary.seq, meta, neigh.net, 1, mcparam)
+counts.binary.seq.denoised_2 = denoisingBinaryCounts(counts.binary.seq, meta, neigh.net, 1, mcparam)
+
+# atlas
+counts.atlas = counts(sce.atlas)
+getBinarized = function(x){
+  return(as.numeric(x >= 1))  
+}
+counts.binary.atlas = t( apply(counts.atlas, 1, function(x) getBinarized(x)) )
+rownames(counts.binary.atlas) = rownames(sce.atlas)
+colnames(counts.binary.atlas) = colnames(sce.atlas)
+  
+counts.cosine.atlas = as.matrix( cosineNorm(assay(sce.atlas, "logcounts")) )
+
+n.neigh = 25
+# imputed-binary-mode
+counts.binary_mode.imputed = bplapply(genes, function(current.gene){
+  current.atlas = counts.binary.atlas[rownames(counts.binary.atlas) == current.gene,]
+  current.mapping = mapping[grepl(current.gene, rownames(mapping)),]
+  mode.imputed = sapply(1:ncol(current.mapping), function(x){
+    return( getmode( current.atlas[current.mapping[,x]], c(1:n.neigh) ) )
+  })
+  return(mode.imputed)
+}, BPPARAM = mcparam)
+counts.binary_mode.imputed = do.call(rbind, counts.binary_mode.imputed)
+colnames(counts.binary_mode.imputed) = colnames(mapping)
+rownames(counts.binary_mode.imputed) = genes
+
+# imputed-binary-mean
+counts.binary_mean.imputed = bplapply(genes, function(current.gene){
+  current.atlas = counts.binary.atlas[rownames(counts.binary.atlas) == current.gene,]
+  current.mapping = mapping[grepl(current.gene, rownames(mapping)),]
+  mean.imputed = sapply(1:ncol(current.mapping), function(x){
+    return( mean( current.atlas[current.mapping[,x]] , na.rm = T) )
+  })
+  return(mean.imputed)
+}, BPPARAM = mcparam)
+counts.binary_mean.imputed = do.call(rbind, counts.binary_mean.imputed)
+colnames(counts.binary_mean.imputed) = colnames(mapping)
+rownames(counts.binary_mean.imputed) = genes
+
+# imputed-binary-mean
+counts.cosine_mean.imputed = bplapply(genes, function(current.gene){
+  current.atlas = counts.cosine.atlas[rownames(counts.cosine.atlas) == current.gene,]
+  current.mapping = mapping[grepl(current.gene, rownames(mapping)),]
+  mean.imputed = sapply(1:ncol(current.mapping), function(x){
+    return( mean( current.atlas[current.mapping[,x]] , na.rm = T) )
+  })
+  return(mean.imputed)
+}, BPPARAM = mcparam)
+counts.cosine_mean.imputed = do.call(rbind, counts.cosine_mean.imputed)
+colnames(counts.cosine_mean.imputed) = colnames(mapping)
+rownames(counts.cosine_mean.imputed) = genes
+
+counts.binary_mode.imputed.denoised_1 = denoisingBinaryCounts(counts.binary_mode.imputed, meta, neigh.net, 1, mcparam)
+counts.binary_mode.imputed.denoised_2 = denoisingBinaryCounts(counts.binary_mode.imputed, meta, neigh.net, 2, mcparam)
+
+# combine together
+performance.seq = list(counts.binary.seq = counts.binary.seq,
+                       counts.binary.seq.denoised_1 = counts.binary.seq.denoised_1,
+                       counts.binary.seq.denoised_2 = counts.binary.seq.denoised_2, 
+                       counts.cosine.seq = counts.cosine.seq,
+                       counts.binary_mode.imputed = counts.binary_mode.imputed,
+                       counts.binary_mode.imputed.denoised_1 = counts.binary_mode.imputed.denoised_1,
+                       counts.binary_mode.imputed.denoised_2 = counts.binary_mode.imputed.denoised_2,
+                       counts.binary_mean.imputed = counts.binary_mean.imputed,
+                       counts.cosine_mean.imputed = counts.cosine_mean.imputed
+                       )
+
+saveRDS(performance.seq, file =  paste0( root.dir, "data/8_5/stitching/performance_binary_seq2atlas_embryo1z2.rds"))
+
+```
+
+
+#Session Info
+
+```{r sessinf}
+
+sessionInfo()
+
+```
