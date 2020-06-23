@@ -261,3 +261,58 @@ denoisingCounts = function(counts, meta, neigh.net, n.neigh, avg_metric, mcparam
   return(denoised.counts.perCell)
 }
 
+binaryDenoisingCell = function(x, original.counts){
+  if (sum(x) > length(x)/2){
+    return(1)
+  } else if (sum(x) < length(x)/2){
+    return(0)
+  } else {
+    return(original.counts)
+  }
+}
+
+denoisingBinaryCounts = function(counts, meta, neigh.net, n.neigh, mcparam){
+  # subgraph neigh.net to the vertices we have
+  vertices.neigh.net = as_ids( V(neigh.net) )
+  vertices.neigh.net = intersect(vertices.neigh.net, colnames(counts))
+  neigh.net = subgraph(neigh.net, vertices.neigh.net)
+  adjacency.list = adjacent_vertices(neigh.net, V(neigh.net), mode = "all")
+  
+  denoised.counts.perCell = bplapply(colnames(counts), function(cell){
+    current.CT = meta$celltype_mapped_denoised[meta$uniqueID == cell]
+    current.adjacency.list = adjacency.list[names(adjacency.list) == cell]
+    if (!is_empty(current.adjacency.list)){
+      
+      if (n.neigh == 1){
+        neighbor.cells = as_ids(current.adjacency.list[[1]])
+      } else if (n.neigh == 2){
+        neighbor.cells = as_ids(current.adjacency.list[[1]])
+        second.neighbor.cells = sapply(neighbor.cells, function(x){
+          current.second.adjacency.list = adjacency.list[names(adjacency.list) == x]
+          return(as_ids(current.second.adjacency.list[[1]]))
+        })
+        neighbor.cells = unique(c(neighbor.cells, unlist(second.neighbor.cells)))
+      }
+      neighbor.CT = sapply(neighbor.cells, function(x) meta$celltype_mapped_denoised[meta$uniqueID == x])
+      cells.sameCT = c( cell , names(neighbor.CT)[neighbor.CT == current.CT])
+      if (length(cells.sameCT) > 1){
+        current.counts = counts[,cells.sameCT]
+        original.counts = counts[,cell]
+        current.denoised.counts = sapply(1:nrow(current.counts), function(current.gene){
+          return(binaryDenoisingCell(current.counts[current.gene,], original.counts[current.gene]))
+        })
+        return(current.denoised.counts)
+      } else {
+        return(counts[,cell])
+      }
+    } else {
+      return(counts[,cell])
+    }
+  }, BPPARAM = mcparam)
+  denoised.counts.perCell = do.call(cbind, denoised.counts.perCell)
+  colnames(denoised.counts.perCell) = colnames(counts)
+  return(denoised.counts.perCell)
+}
+
+
+
