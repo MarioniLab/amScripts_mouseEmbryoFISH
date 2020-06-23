@@ -147,8 +147,8 @@ counts.binary.imputed = do.call(rbind, counts.binary.imputed)
 colnames(counts.binary.imputed) = colnames(mapping)
 rownames(counts.binary.imputed) = genes
 
-counts.binary.imputed.denoised_1 = denoisingBinaryCounts(counts.binary.imputed, meta, neigh.net, 1, mcparam)
-counts.binary.imputed.denoised_2 = denoisingBinaryCounts(counts.binary.imputed, meta, neigh.net, 2, mcparam)
+counts.binary.imputed.denoised_1 = denoisingCounts(counts.binary.imputed, meta, neigh.net, 1, "mean", mcparam)
+counts.binary.imputed.denoised_2 = denoisingCounts(counts.binary.imputed, meta, neigh.net, 2, "mean", mcparam)
 
 # imputed-cosine-mean
 counts.cosine.imputed = bplapply(genes, function(current.gene){
