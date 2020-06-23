@@ -130,7 +130,7 @@ counts.binary_mode.imputed = bplapply(genes, function(current.gene){
   current.atlas = counts.binary.atlas[rownames(counts.binary.atlas) == current.gene,]
   current.mapping = mapping[grepl(current.gene, rownames(mapping)),]
   mode.imputed = sapply(1:ncol(current.mapping), function(x){
-    return( getmode( current.atlas[current.mapping[,x]], c(1:n.neigh) ) )
+    return( as.numeric(getmode( current.atlas[current.mapping[,x]], c(1:n.neigh))) )
   })
   return(mode.imputed)
 }, BPPARAM = mcparam)
