@@ -78,21 +78,27 @@ neigh.net = readRDS(paste0(root.dir, "data/8_5/source/E8.5_neighbourGraph_1.3.Rd
 
 1) seq-binary
 
-2) seq-cosine
+2) seq-binary-denoised-1
 
-3) seq-binary-denoised-1
+3) seq-binary-denoised-2
 
-4) seq-binary-denoised-2
+4) seq-cosine
 
-5) imputed-binary-mode
+5) seq-cosine-denoised-1
 
-6) imputed-binary-mean
+6) seq-cosine-denoised-2
 
-7) imputed-cosine-mean
+7) imputed-binary-mean
 
-8) imputed-binary-mode-denoised-1
+8) imputed-binary-mean-denoised-1
 
-9) imputed-binary-mode-denoised-2
+9) imputed-binary-mean-denoised-1
+
+10) imputed-cosine-mean
+
+11) imputed-cosine-mean-denoised-1
+
+12) imputed-cosine-mean-denoised-2
 
 ```{r imputed-stat, message=FALSE, warning=FALSE}
 
@@ -108,10 +114,12 @@ getBinarized = function(x){
 counts.binary.seq = t( apply(counts.seq, 1, function(x) getBinarized(x)) )
 rownames(counts.binary.seq) = rownames(sce.seq)
 colnames(counts.binary.seq) = colnames(sce.seq)
-  
-counts.cosine.seq = as.matrix( cosineNorm(assay(sce.seq, "logcounts_area")) )
 counts.binary.seq.denoised_1 = denoisingBinaryCounts(counts.binary.seq, meta, neigh.net, 1, mcparam)
-counts.binary.seq.denoised_2 = denoisingBinaryCounts(counts.binary.seq, meta, neigh.net, 1, mcparam)
+counts.binary.seq.denoised_2 = denoisingBinaryCounts(counts.binary.seq, meta, neigh.net, 2, mcparam)
+
+counts.cosine.seq = as.matrix( cosineNorm(assay(sce.seq, "logcounts_area")) )
+counts.cosine.seq.denoised_1 = denoisingCounts(counts.cosine.seq, meta, neigh.net, 1, "mean", mcparam)
+counts.binary.seq.denoised_2 = denoisingBinaryCounts(counts.cosine.seq, meta, neigh.net, 2, "mean", mcparam)
 
 # atlas
 counts.atlas = counts(sce.atlas)
@@ -125,21 +133,9 @@ colnames(counts.binary.atlas) = colnames(sce.atlas)
 counts.cosine.atlas = as.matrix( cosineNorm(assay(sce.atlas, "logcounts")) )
 
 n.neigh = 25
-# imputed-binary-mode
-counts.binary_mode.imputed = bplapply(genes, function(current.gene){
-  current.atlas = counts.binary.atlas[rownames(counts.binary.atlas) == current.gene,]
-  current.mapping = mapping[grepl(current.gene, rownames(mapping)),]
-  mode.imputed = sapply(1:ncol(current.mapping), function(x){
-    return( as.numeric(getmode( current.atlas[current.mapping[,x]], c(1:n.neigh))) )
-  })
-  return(mode.imputed)
-}, BPPARAM = mcparam)
-counts.binary_mode.imputed = do.call(rbind, counts.binary_mode.imputed)
-colnames(counts.binary_mode.imputed) = colnames(mapping)
-rownames(counts.binary_mode.imputed) = genes
 
 # imputed-binary-mean
-counts.binary_mean.imputed = bplapply(genes, function(current.gene){
+counts.binary.imputed = bplapply(genes, function(current.gene){
   current.atlas = counts.binary.atlas[rownames(counts.binary.atlas) == current.gene,]
   current.mapping = mapping[grepl(current.gene, rownames(mapping)),]
   mean.imputed = sapply(1:ncol(current.mapping), function(x){
@@ -147,12 +143,15 @@ counts.binary_mean.imputed = bplapply(genes, function(current.gene){
   })
   return(mean.imputed)
 }, BPPARAM = mcparam)
-counts.binary_mean.imputed = do.call(rbind, counts.binary_mean.imputed)
-colnames(counts.binary_mean.imputed) = colnames(mapping)
-rownames(counts.binary_mean.imputed) = genes
+counts.binary.imputed = do.call(rbind, counts.binary.imputed)
+colnames(counts.binary.imputed) = colnames(mapping)
+rownames(counts.binary.imputed) = genes
 
-# imputed-binary-mean
-counts.cosine_mean.imputed = bplapply(genes, function(current.gene){
+counts.binary.imputed.denoised_1 = denoisingBinaryCounts(counts.binary.imputed, meta, neigh.net, 1, mcparam)
+counts.binary.imputed.denoised_2 = denoisingBinaryCounts(counts.binary.imputed, meta, neigh.net, 2, mcparam)
+
+# imputed-cosine-mean
+counts.cosine.imputed = bplapply(genes, function(current.gene){
   current.atlas = counts.cosine.atlas[rownames(counts.cosine.atlas) == current.gene,]
   current.mapping = mapping[grepl(current.gene, rownames(mapping)),]
   mean.imputed = sapply(1:ncol(current.mapping), function(x){
@@ -160,23 +159,27 @@ counts.cosine_mean.imputed = bplapply(genes, function(current.gene){
   })
   return(mean.imputed)
 }, BPPARAM = mcparam)
-counts.cosine_mean.imputed = do.call(rbind, counts.cosine_mean.imputed)
-colnames(counts.cosine_mean.imputed) = colnames(mapping)
-rownames(counts.cosine_mean.imputed) = genes
+counts.cosine.imputed = do.call(rbind, counts.cosine.imputed)
+colnames(counts.cosine.imputed) = colnames(mapping)
+rownames(counts.cosine.imputed) = genes
 
-counts.binary_mode.imputed.denoised_1 = denoisingBinaryCounts(counts.binary_mode.imputed, meta, neigh.net, 1, mcparam)
-counts.binary_mode.imputed.denoised_2 = denoisingBinaryCounts(counts.binary_mode.imputed, meta, neigh.net, 2, mcparam)
+counts.cosine.imputed.denoised_1 = denoisingCounts(counts.cosine.imputed, meta, neigh.net, 1, "mean", mcparam)
+counts.cosine.imputed.denoised_2 = denoisingCounts(counts.cosine.imputed, meta, neigh.net, 2, "mean", mcparam)
+
 
 # combine together
 performance.seq = list(counts.binary.seq = counts.binary.seq,
                        counts.binary.seq.denoised_1 = counts.binary.seq.denoised_1,
                        counts.binary.seq.denoised_2 = counts.binary.seq.denoised_2, 
                        counts.cosine.seq = counts.cosine.seq,
-                       counts.binary_mode.imputed = counts.binary_mode.imputed,
-                       counts.binary_mode.imputed.denoised_1 = counts.binary_mode.imputed.denoised_1,
-                       counts.binary_mode.imputed.denoised_2 = counts.binary_mode.imputed.denoised_2,
-                       counts.binary_mean.imputed = counts.binary_mean.imputed,
-                       counts.cosine_mean.imputed = counts.cosine_mean.imputed
+                       counts.cosine.seq.denoised_1 = counts.cosine.seq.denoised_1,
+                       counts.cosine.seq.denoised_2 = counts.cosine.seq.denoised_2,
+                       counts.binary.imputed = counts.binary_mode.imputed,
+                       counts.binary.imputed.denoised_1 = counts.binary.imputed.denoised_1,
+                       counts.binary.imputed.denoised_2 = counts.binary.imputed.denoised_2,
+                       counts.cosine.imputed = counts.cosine.imputed,
+                       counts.cosine.imputed.denoised_1 = counts.cosine.imputed.denoised_1,
+                       counts.cosine.imputed.denoised_2 = counts.cosine.imputed.denoised_2
                        )
 
 saveRDS(performance.seq, file =  paste0( root.dir, "data/8_5/stitching/performance_binary_seq2atlas_embryo1z2.rds"))
