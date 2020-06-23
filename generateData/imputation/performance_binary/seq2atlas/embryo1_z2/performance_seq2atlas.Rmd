@@ -119,7 +119,7 @@ counts.binary.seq.denoised_2 = denoisingBinaryCounts(counts.binary.seq, meta, ne
 
 counts.cosine.seq = as.matrix( cosineNorm(assay(sce.seq, "logcounts_area")) )
 counts.cosine.seq.denoised_1 = denoisingCounts(counts.cosine.seq, meta, neigh.net, 1, "mean", mcparam)
-counts.binary.seq.denoised_2 = denoisingBinaryCounts(counts.cosine.seq, meta, neigh.net, 2, "mean", mcparam)
+counts.cosine.seq.denoised_2 = denoisingCounts(counts.cosine.seq, meta, neigh.net, 2, "mean", mcparam)
 
 # atlas
 counts.atlas = counts(sce.atlas)
