@@ -150,21 +150,37 @@ rownames(counts.binary.imputed) = genes
 counts.binary.imputed.denoised_1 = denoisingCounts(counts.binary.imputed, meta, neigh.net, 1, "mean", mcparam)
 counts.binary.imputed.denoised_2 = denoisingCounts(counts.binary.imputed, meta, neigh.net, 2, "mean", mcparam)
 
-# imputed-cosine-mean
-counts.cosine.imputed = bplapply(genes, function(current.gene){
+# imputed-cosine-q75
+counts.cosine.imputed.q75 = bplapply(genes, function(current.gene){
   current.atlas = counts.cosine.atlas[rownames(counts.cosine.atlas) == current.gene,]
   current.mapping = mapping[grepl(current.gene, rownames(mapping)),]
   avg.imputed = sapply(1:ncol(current.mapping), function(x){
-    return( max( current.atlas[current.mapping[,x]] , na.rm = T) )
+    return( quantile( current.atlas[current.mapping[,x]] , 0.75) )
   })
   return(avg.imputed)
 }, BPPARAM = mcparam)
-counts.cosine.imputed = do.call(rbind, counts.cosine.imputed)
-colnames(counts.cosine.imputed) = colnames(mapping)
-rownames(counts.cosine.imputed) = genes
+counts.cosine.imputed.q75 = do.call(rbind, counts.cosine.imputed.q75)
+colnames(counts.cosine.imputed.q75) = colnames(mapping)
+rownames(counts.cosine.imputed.q75) = genes
 
-counts.cosine.imputed.denoised_1 = denoisingCounts(counts.cosine.imputed, meta, neigh.net, 1, "median", mcparam)
-counts.cosine.imputed.denoised_2 = denoisingCounts(counts.cosine.imputed, meta, neigh.net, 2, "median", mcparam)
+counts.cosine.imputed.q75.denoised_1 = denoisingCounts(counts.cosine.imputed.q75, meta, neigh.net, 1, "median", mcparam)
+counts.cosine.imputed.q75.denoised_2 = denoisingCounts(counts.cosine.imputed.q75, meta, neigh.net, 2, "median", mcparam)
+
+# imputed-cosine-median
+counts.cosine.imputed.median = bplapply(genes, function(current.gene){
+  current.atlas = counts.cosine.atlas[rownames(counts.cosine.atlas) == current.gene,]
+  current.mapping = mapping[grepl(current.gene, rownames(mapping)),]
+  avg.imputed = sapply(1:ncol(current.mapping), function(x){
+    return( median( current.atlas[current.mapping[,x]] , na.rm = T) )
+  })
+  return(avg.imputed)
+}, BPPARAM = mcparam)
+counts.cosine.imputed.median = do.call(rbind, counts.cosine.imputed.median)
+colnames(counts.cosine.imputed.median) = colnames(mapping)
+rownames(counts.cosine.imputed.median) = genes
+
+counts.cosine.imputed.median.denoised_1 = denoisingCounts(counts.cosine.imputed.median, meta, neigh.net, 1, "median", mcparam)
+counts.cosine.imputed.median.denoised_2 = denoisingCounts(counts.cosine.imputed.median, meta, neigh.net, 2, "median", mcparam)
 
 
 # combine together
@@ -177,9 +193,12 @@ performance.seq = list(counts.binary.seq = counts.binary.seq,
                        counts.binary.imputed = counts.binary.imputed,
                        counts.binary.imputed.denoised_1 = counts.binary.imputed.denoised_1,
                        counts.binary.imputed.denoised_2 = counts.binary.imputed.denoised_2,
-                       counts.cosine.imputed = counts.cosine.imputed,
-                       counts.cosine.imputed.denoised_1 = counts.cosine.imputed.denoised_1,
-                       counts.cosine.imputed.denoised_2 = counts.cosine.imputed.denoised_2
+                       counts.cosine.imputed.q75 = counts.cosine.imputed.q75,
+                       counts.cosine.imputed.q75.denoised_1 = counts.cosine.imputed.q75.denoised_1,
+                       counts.cosine.imputed.q75.denoised_2 = counts.cosine.imputed.q75.denoised_2,
+                       counts.cosine.imputed.median = counts.cosine.imputed.median,
+                       counts.cosine.imputed.median.denoised_1 = counts.cosine.imputed.median.denoised_1,
+                       counts.cosine.imputed.median.denoised_2 = counts.cosine.imputed.median.denoised_2
                        )
 
 saveRDS(performance.seq, file =  paste0( root.dir, "data/8_5/stitching/performance_binary_seq2atlas_embryo1z2.rds"))
