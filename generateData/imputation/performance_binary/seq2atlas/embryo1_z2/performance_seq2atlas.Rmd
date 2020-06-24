@@ -118,8 +118,8 @@ counts.binary.seq.denoised_1 = denoisingBinaryCounts(counts.binary.seq, meta, ne
 counts.binary.seq.denoised_2 = denoisingBinaryCounts(counts.binary.seq, meta, neigh.net, 2, mcparam)
 
 counts.cosine.seq = as.matrix( cosineNorm(assay(sce.seq, "logcounts_area")) )
-counts.cosine.seq.denoised_1 = denoisingCounts(counts.cosine.seq, meta, neigh.net, 1, "median", mcparam)
-counts.cosine.seq.denoised_2 = denoisingCounts(counts.cosine.seq, meta, neigh.net, 2, "median", mcparam)
+counts.cosine.seq.denoised_1 = denoisingCounts(counts.cosine.seq, meta, neigh.net, 1, "mean", mcparam)
+counts.cosine.seq.denoised_2 = denoisingCounts(counts.cosine.seq, meta, neigh.net, 2, "mean", mcparam)
 
 # atlas
 counts.atlas = counts(sce.atlas)
@@ -155,7 +155,7 @@ counts.cosine.imputed = bplapply(genes, function(current.gene){
   current.atlas = counts.cosine.atlas[rownames(counts.cosine.atlas) == current.gene,]
   current.mapping = mapping[grepl(current.gene, rownames(mapping)),]
   avg.imputed = sapply(1:ncol(current.mapping), function(x){
-    return( quantile( current.atlas[current.mapping[,x]] , .75) )
+    return( max( current.atlas[current.mapping[,x]] , na.rm = T) )
   })
   return(avg.imputed)
 }, BPPARAM = mcparam)
@@ -163,8 +163,8 @@ counts.cosine.imputed = do.call(rbind, counts.cosine.imputed)
 colnames(counts.cosine.imputed) = colnames(mapping)
 rownames(counts.cosine.imputed) = genes
 
-counts.cosine.imputed.denoised_1 = denoisingCounts(counts.cosine.imputed, meta, neigh.net, 1, "median", mcparam)
-counts.cosine.imputed.denoised_2 = denoisingCounts(counts.cosine.imputed, meta, neigh.net, 2, "median", mcparam)
+counts.cosine.imputed.denoised_1 = denoisingCounts(counts.cosine.imputed, meta, neigh.net, 1, "mean", mcparam)
+counts.cosine.imputed.denoised_2 = denoisingCounts(counts.cosine.imputed, meta, neigh.net, 2, "mean", mcparam)
 
 
 # combine together
