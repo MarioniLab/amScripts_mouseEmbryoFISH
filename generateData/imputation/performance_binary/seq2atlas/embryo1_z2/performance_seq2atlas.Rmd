@@ -154,10 +154,10 @@ counts.binary.imputed.denoised_2 = denoisingCounts(counts.binary.imputed, meta, 
 counts.cosine.imputed = bplapply(genes, function(current.gene){
   current.atlas = counts.cosine.atlas[rownames(counts.cosine.atlas) == current.gene,]
   current.mapping = mapping[grepl(current.gene, rownames(mapping)),]
-  median.imputed = sapply(1:ncol(current.mapping), function(x){
-    return( median( current.atlas[current.mapping[,x]] , na.rm = T) )
+  avg.imputed = sapply(1:ncol(current.mapping), function(x){
+    return( quantile( current.atlas[current.mapping[,x]] , .75) )
   })
-  return(median.imputed)
+  return(avg.imputed)
 }, BPPARAM = mcparam)
 counts.cosine.imputed = do.call(rbind, counts.cosine.imputed)
 colnames(counts.cosine.imputed) = colnames(mapping)
