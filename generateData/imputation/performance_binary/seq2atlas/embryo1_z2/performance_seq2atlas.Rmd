@@ -182,7 +182,21 @@ rownames(counts.cosine.imputed.median) = genes
 counts.cosine.imputed.median.denoised_1 = denoisingCounts(counts.cosine.imputed.median, meta, neigh.net, 1, "median", mcparam)
 counts.cosine.imputed.median.denoised_2 = denoisingCounts(counts.cosine.imputed.median, meta, neigh.net, 2, "median", mcparam)
 
+# imputed-cosine-mean
+counts.cosine.imputed.mean = bplapply(genes, function(current.gene){
+  current.atlas = counts.cosine.atlas[rownames(counts.cosine.atlas) == current.gene,]
+  current.mapping = mapping[grepl(current.gene, rownames(mapping)),]
+  avg.imputed = sapply(1:ncol(current.mapping), function(x){
+    return( mean( current.atlas[current.mapping[,x]] , na.rm = T) )
+  })
+  return(avg.imputed)
+}, BPPARAM = mcparam)
+counts.cosine.imputed.mean = do.call(rbind, counts.cosine.imputed.mean)
+colnames(counts.cosine.imputed.mean) = colnames(mapping)
+rownames(counts.cosine.imputed.mean) = genes
 
+counts.cosine.imputed.mean.denoised_1 = denoisingCounts(counts.cosine.imputed.mean, meta, neigh.net, 1, "median", mcparam)
+counts.cosine.imputed.mean.denoised_2 = denoisingCounts(counts.cosine.imputed.mean, meta, neigh.net, 2, "median", mcparam)
 # combine together
 performance.seq = list(counts.binary.seq = counts.binary.seq,
                        counts.binary.seq.denoised_1 = counts.binary.seq.denoised_1,
@@ -198,7 +212,10 @@ performance.seq = list(counts.binary.seq = counts.binary.seq,
                        counts.cosine.imputed.q75.denoised_2 = counts.cosine.imputed.q75.denoised_2,
                        counts.cosine.imputed.median = counts.cosine.imputed.median,
                        counts.cosine.imputed.median.denoised_1 = counts.cosine.imputed.median.denoised_1,
-                       counts.cosine.imputed.median.denoised_2 = counts.cosine.imputed.median.denoised_2
+                       counts.cosine.imputed.median.denoised_2 = counts.cosine.imputed.median.denoised_2,
+                       counts.cosine.imputed.mean = counts.cosine.imputed.mean,
+                       counts.cosine.imputed.mean.denoised_1 = counts.cosine.imputed.mean.denoised_1,
+                       counts.cosine.imputed.mean.denoised_2 = counts.cosine.imputed.mean.denoised_2
                        )
 
 saveRDS(performance.seq, file =  paste0( root.dir, "data/8_5/stitching/performance_binary_seq2atlas_embryo1z2.rds"))
