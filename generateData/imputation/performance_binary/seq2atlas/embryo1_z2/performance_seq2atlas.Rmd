@@ -163,8 +163,8 @@ counts.cosine.imputed.q75 = do.call(rbind, counts.cosine.imputed.q75)
 colnames(counts.cosine.imputed.q75) = colnames(mapping)
 rownames(counts.cosine.imputed.q75) = genes
 
-counts.cosine.imputed.q75.denoised_1 = denoisingCounts(counts.cosine.imputed.q75, meta, neigh.net, 1, "median", mcparam)
-counts.cosine.imputed.q75.denoised_2 = denoisingCounts(counts.cosine.imputed.q75, meta, neigh.net, 2, "median", mcparam)
+counts.cosine.imputed.q75.denoised_1 = denoisingCounts(counts.cosine.imputed.q75, meta, neigh.net, 1, "mean", mcparam)
+counts.cosine.imputed.q75.denoised_2 = denoisingCounts(counts.cosine.imputed.q75, meta, neigh.net, 2, "mean", mcparam)
 
 # imputed-cosine-median
 counts.cosine.imputed.median = bplapply(genes, function(current.gene){
@@ -179,8 +179,8 @@ counts.cosine.imputed.median = do.call(rbind, counts.cosine.imputed.median)
 colnames(counts.cosine.imputed.median) = colnames(mapping)
 rownames(counts.cosine.imputed.median) = genes
 
-counts.cosine.imputed.median.denoised_1 = denoisingCounts(counts.cosine.imputed.median, meta, neigh.net, 1, "median", mcparam)
-counts.cosine.imputed.median.denoised_2 = denoisingCounts(counts.cosine.imputed.median, meta, neigh.net, 2, "median", mcparam)
+counts.cosine.imputed.median.denoised_1 = denoisingCounts(counts.cosine.imputed.median, meta, neigh.net, 1, "mean", mcparam)
+counts.cosine.imputed.median.denoised_2 = denoisingCounts(counts.cosine.imputed.median, meta, neigh.net, 2, "mean", mcparam)
 
 # imputed-cosine-mean
 counts.cosine.imputed.mean = bplapply(genes, function(current.gene){
@@ -194,8 +194,8 @@ counts.cosine.imputed.mean = bplapply(genes, function(current.gene){
 counts.cosine.imputed.mean = do.call(rbind, counts.cosine.imputed.mean)
 colnames(counts.cosine.imputed.mean) = colnames(mapping)
 rownames(counts.cosine.imputed.mean) = genes
-counts.cosine.imputed.mean.denoised_1 = denoisingCounts(counts.cosine.imputed.mean, meta, neigh.net, 1, "median", mcparam)
-counts.cosine.imputed.mean.denoised_2 = denoisingCounts(counts.cosine.imputed.mean, meta, neigh.net, 2, "median", mcparam)
+counts.cosine.imputed.mean.denoised_1 = denoisingCounts(counts.cosine.imputed.mean, meta, neigh.net, 1, "mean", mcparam)
+counts.cosine.imputed.mean.denoised_2 = denoisingCounts(counts.cosine.imputed.mean, meta, neigh.net, 2, "mean", mcparam)
 
 # imputed-cosine-max
 counts.cosine.imputed.max = bplapply(genes, function(current.gene){
@@ -209,8 +209,8 @@ counts.cosine.imputed.max = bplapply(genes, function(current.gene){
 counts.cosine.imputed.max = do.call(rbind, counts.cosine.imputed.max)
 colnames(counts.cosine.imputed.max) = colnames(mapping)
 rownames(counts.cosine.imputed.max) = genes
-counts.cosine.imputed.max.denoised_1 = denoisingCounts(counts.cosine.imputed.max, meta, neigh.net, 1, "median", mcparam)
-counts.cosine.imputed.max.denoised_2 = denoisingCounts(counts.cosine.imputed.max, meta, neigh.net, 2, "median", mcparam)
+counts.cosine.imputed.max.denoised_1 = denoisingCounts(counts.cosine.imputed.max, meta, neigh.net, 1, "mean", mcparam)
+counts.cosine.imputed.max.denoised_2 = denoisingCounts(counts.cosine.imputed.max, meta, neigh.net, 2, "mean", mcparam)
 
 # combine together
 performance.seq = list(
