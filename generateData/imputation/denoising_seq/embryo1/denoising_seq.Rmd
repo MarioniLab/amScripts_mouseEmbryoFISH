@@ -111,14 +111,15 @@ n.neigh.grid = c(1:5)
 
 counts.denoised = lapply( n.neigh.grid , function(i) {
   counts.denoised.mean = denoisingCounts(counts.cosine.seq, i, function(x){ mean(x) }, mcparam) 
-  counts.denoised.median = denoisingCounts(counts.cosine.seq, i, function(x){ median(x) }, mcparam)  
   counts.denoised.min = denoisingCounts(counts.cosine.seq, i, function(x){ min(x) }, mcparam) 
-  counts.denoised.max = denoisingCounts(counts.cosine.seq, i, function(x){ max(x) }, mcparam) 
-  counts.denoised.q25 = denoisingCounts(counts.cosine.seq, i, function(x){ quantile(x, .25) }, mcparam) 
+  counts.denoised.q25 = denoisingCounts(counts.cosine.seq, i, function(x){ quantile(x, .25) }, mcparam)
+  counts.denoised.q50 = denoisingCounts(counts.cosine.seq, i, function(x){ quantile(x, .5) }, mcparam)
   counts.denoised.q75 = denoisingCounts(counts.cosine.seq, i, function(x){ quantile(x, .75) }, mcparam) 
-  current.counts.denoised = list(mean = counts.denoised.mean, median = counts.denoised.mean, 
-                                 min = counts.denoised.min, max = counts.denoised.max, 
-                                 q25 = counts.denoised.q25, q75 = counts.denoised.q75)
+  counts.denoised.max = denoisingCounts(counts.cosine.seq, i, function(x){ max(x) }, mcparam) 
+  current.counts.denoised = list(mean = counts.denoised.mean,
+                                 min = counts.denoised.min, q25 = counts.denoised.q25, 
+                                 q50 = counts.denoised.q50, q75 = counts.denoised.q75, 
+                                 max = counts.denoised.max)
   return(current.counts.denoised)
 })
 names(counts.denoised) = paste0("nn_", n.neigh.grid)  
