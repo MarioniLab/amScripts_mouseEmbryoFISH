@@ -9,10 +9,10 @@ script_name=den_seq_1
 
 #CHOOSE PARAMETERS
 #RAM in megabytes
-memory=90000
+memory=75000
 r_command="rusage[mem=${memory}]"
 #num_processors
-nproc=5
+nproc=4
 
 smg=/nfs/research1/marioni/alsu/singularity/R1.simg
 script=/nfs/research1/marioni/alsu/spatial/mouse_embryo/amScripts_mouseEmbryoFISH/generateData/imputation/denoising_seq/embryo1/run_rmd.R
