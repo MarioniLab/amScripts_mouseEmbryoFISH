@@ -1,0 +1,211 @@
+---
+title: "Mapping performance seq2atlas"
+output:
+  BiocStyle::html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes  
+  html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: true
+    theme: united
+---
+
+Settings:
+
+nn = 25
+
+# Load dependencies and source data
+
+```{r load_data, message=FALSE}
+
+library(Matrix)
+library(scran)
+library(BiocParallel)
+library(BiocNeighbors)
+ncores = 5
+mcparam = MulticoreParam(workers = ncores)
+register(mcparam)
+library(igraph)
+library(reshape2)
+library(knitr)
+library(scater)
+library(scales)
+library(biomaRt)
+library(batchelor)
+library(irlba)
+library(batchelor)
+library(tibble)
+library(dplyr)
+library(purrr)
+
+#root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
+root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
+
+# load seq emmbryos
+load_embryo_8.5(dir = "cluster")
+sce.seq = sce[!rownames(sce) == "Xist", ]
+
+# load atlas 
+sce.atlas = readRDS(paste0(root.dir, "data/reducedAtlas/E8_25__E8_5.rds"))
+sce.atlas = sce.atlas[rownames(sce.seq), sce.atlas$stage == "E8.5"]
+
+# order seq and atlas (in case, cant hurt, had troubles b4)
+sce.seq = sce.seq[order(rownames(sce.seq)),]
+sce.atlas = sce.atlas[order(rownames(sce.atlas)),]
+
+# load mapping
+mapping.z2 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo1z2.rds"))
+mapping.z5 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo1z5.rds"))
+mapping = cbind(mapping.z2, mapping.z5)
+sce.seq = sce.seq[, colnames(sce.seq) %in% colnames(mapping) ]
+
+# merge meta + CT annotation
+meta = data.frame( colData(sce.seq))
+meta.CT = readRDS(paste0(root.dir, "data/8_5/source/E8.5_treeMNN_denoised.Rds"))
+colnames(meta.CT)[colnames(meta.CT) == "cell"] <- "uniqueID"
+meta = merge(meta, meta.CT, all.x = T, all.y = F)
+
+# neigh.net
+neigh.net = readRDS(paste0(root.dir, "data/8_5/source/E8.5_neighbourGraph_1.3.Rds"))
+
+```
+
+
+# Get imputation
+
+```{r get-imputation, message=FALSE, warning=FALSE}
+
+
+mapping = mapping[, order(colnames(mapping))]
+sce.seq = sce.seq[,order(colnames(sce.seq))]
+counts.cosine.seq = as.matrix( cosineNorm(assay(sce.seq, "logcounts_area")) )
+counts.cosine.atlas = as.matrix( cosineNorm(assay(sce.atlas, "logcounts")) )
+genes = rownames(sce.seq)
+
+# imputation-quantile
+getImputationQuantile = function(applied.quantile, mcparam){
+  counts.cosine.imputed = bplapply(genes, function(current.gene){
+    current.atlas = counts.cosine.atlas[rownames(counts.cosine.atlas) == current.gene,]
+    current.mapping = mapping[grepl(current.gene, rownames(mapping)),]
+    avg.imputed = sapply(1:ncol(current.mapping), function(x){
+      return( quantile( current.atlas[current.mapping[,x]] , applied.quantile) )
+    })
+    return(avg.imputed)
+  }, BPPARAM = mcparam)
+  counts.cosine.imputed = do.call(rbind, counts.cosine.imputed)
+  colnames(counts.cosine.imputed) = colnames(mapping)
+  rownames(counts.cosine.imputed) = genes
+  return(counts.cosine.imputed)
+}
+
+counts.cosine.imputed.q70 = getImputationQuantile(.7, mcparam)
+counts.cosine.imputed.q80 = getImputationQuantile(.8, mcparam)
+counts.cosine.imputed.q90 = getImputationQuantile(.9, mcparam)
+
+# imputation-mean
+getImputationMean = function(mcparam){
+  counts.cosine.imputed = bplapply(genes, function(current.gene){
+    current.atlas = counts.cosine.atlas[rownames(counts.cosine.atlas) == current.gene,]
+    current.mapping = mapping[grepl(current.gene, rownames(mapping)),]
+    avg.imputed = sapply(1:ncol(current.mapping), function(x){
+      return( quantile( current.atlas[current.mapping[,x]] , applied.quantile) )
+    })
+    return(avg.imputed)
+  }, BPPARAM = mcparam)
+  counts.cosine.imputed = do.call(rbind, counts.cosine.imputed)
+  colnames(counts.cosine.imputed) = colnames(mapping)
+  rownames(counts.cosine.imputed) = genes
+  return(counts.cosine.imputed)
+}
+counts.cosine.imputed.mean = getImputationMean(mcparam)
+
+
+```
+
+
+# Denoising 
+
+n.neigh = c(1:5); metric = median
+
+
+```{r add-denoising, message=FALSE, warning=FALSE}
+
+
+denoisingCounts = function(counts, n.neigh, func_avg_metric, mcparam){
+  vertices.neigh.net = as_ids( V(neigh.net) )
+  vertices.neigh.net = intersect(vertices.neigh.net, colnames(counts))
+  neigh.net = subgraph(neigh.net, vertices.neigh.net)
+  short.dist = distances(neigh.net, v = vertices.neigh.net, to = vertices.neigh.net)
+  denoised.counts.perCell = bplapply(colnames(counts), function(cell){
+    current.CT = meta$celltype_mapped_denoised[meta$uniqueID == cell]
+    
+    if (sum(rownames(short.dist) == cell) == 1){
+      neighbor.cells = names(which(short.dist[cell, ] <= n.neigh))
+      if (!is_empty(neighbor.cells)){
+        neighbor.CT = sapply(neighbor.cells, function(x) meta$celltype_mapped_denoised[meta$uniqueID == x])
+        cells.sameCT = c( cell , names(neighbor.CT)[neighbor.CT == current.CT])
+        if (length(cells.sameCT) > 1){
+          current.counts = counts[,cells.sameCT]
+          current.counts = apply(current.counts, 1, func_avg_metric)
+          return(current.counts)
+        } else {
+          return(counts[,cell])
+        }
+      } else {
+        return(counts[,cell])
+      }
+    } else {
+      return(counts[,cell])
+    } 
+  }, BPPARAM = mcparam)
+  denoised.counts.perCell = do.call(cbind, denoised.counts.perCell)
+  colnames(denoised.counts.perCell) = colnames(counts)
+  rownames(denoised.counts.perCell) = rownames(counts)
+  return(denoised.counts.perCell)
+}
+
+n.neigh.grid = c(1:5)
+addDenoising = function(counts, mcparam){
+  counts.denoised = lapply( n.neigh.grid , function(i) {
+    return( denoisingCounts(counts, i, function(x){ quantile(x, .5) }, mcparam) )
+  })
+  names(counts.denoised) = paste0("nn_", n.neigh.grid)  
+  counts.denoised = append(counts , counts.denoised)
+  return(counts.denoised)
+}
+  
+
+counts.cosine.seq = addDenoising(counts.cosine.seq, mcparam)
+counts.cosine.imputed.q70 = addDenoising(counts.cosine.imputed.q70, mcparam)
+counts.cosine.imputed.q80 = addDenoising(counts.cosine.imputed.q80, mcparam)
+counts.cosine.imputed.q90 = addDenoising(counts.cosine.imputed.q90, mcparam)
+counts.cosine.imputed.mean = addDenoising(counts.cosine.imputed.mean, mcparam)
+
+
+
+# combine together
+performance.seq = list(
+                       counts.cosine.seq = counts.cosine.seq,
+                       counts.cosine.imputed.q70 = counts.cosine.imputed.q70,
+                       counts.cosine.imputed.q80 = counts.cosine.imputed.q80,
+                       counts.cosine.imputed.q90 = counts.cosine.imputed.q90,
+                       counts.cosine.imputed.mean = counts.cosine.imputed.mean
+                       )
+
+saveRDS(performance.seq, file =  paste0( root.dir, "data/8_5/stitching/performance_seq2atlas_embryo1.rds"))
+
+```
+
+
+#Session Info
+
+```{r sessinf}
+
+sessionInfo()
+
+```
