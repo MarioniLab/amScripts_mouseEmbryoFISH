@@ -113,7 +113,7 @@ getImputationMean = function(mcparam){
     current.atlas = counts.cosine.atlas[rownames(counts.cosine.atlas) == current.gene,]
     current.mapping = mapping[grepl(current.gene, rownames(mapping)),]
     avg.imputed = sapply(1:ncol(current.mapping), function(x){
-      return( quantile( current.atlas[current.mapping[,x]] , applied.quantile) )
+      return( mean( current.atlas[current.mapping[,x]] ) )
     })
     return(avg.imputed)
   }, BPPARAM = mcparam)
