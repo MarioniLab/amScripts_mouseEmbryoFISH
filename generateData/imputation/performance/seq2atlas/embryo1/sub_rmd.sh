@@ -9,10 +9,10 @@ script_name=perf_seq_1
 
 #CHOOSE PARAMETERS
 #RAM in megabytes
-memory=75000
+memory=90000
 r_command="rusage[mem=${memory}]"
 #num_processors
-nproc=4
+nproc=3
 
 smg=/nfs/research1/marioni/alsu/singularity/R1.simg
 script=/nfs/research1/marioni/alsu/spatial/mouse_embryo/amScripts_mouseEmbryoFISH/generateData/imputation/performance/seq2atlas/embryo1/run_rmd.R
