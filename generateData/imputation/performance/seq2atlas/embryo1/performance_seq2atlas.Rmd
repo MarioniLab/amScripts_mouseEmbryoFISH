@@ -26,7 +26,7 @@ library(Matrix)
 library(scran)
 library(BiocParallel)
 library(BiocNeighbors)
-ncores = 3
+ncores = 4
 mcparam = MulticoreParam(workers = ncores)
 register(mcparam)
 library(igraph)
@@ -42,11 +42,10 @@ library(tibble)
 library(dplyr)
 library(purrr)
 
-#root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
 root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
 source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
 
-# load seq emmbryos
+# load seq embryos
 load_embryo_8.5(dir = "cluster")
 sce.seq = sce[!rownames(sce) == "Xist", ]
 
@@ -103,7 +102,6 @@ getImputationQuantile = function(applied.quantile, mcparam){
   return(counts.cosine.imputed)
 }
 
-counts.cosine.imputed.q70 = getImputationQuantile(.7, mcparam)
 counts.cosine.imputed.q80 = getImputationQuantile(.8, mcparam)
 counts.cosine.imputed.q90 = getImputationQuantile(.9, mcparam)
 
@@ -175,26 +173,27 @@ addDenoising = function(counts, mcparam){
     return( denoisingCounts(counts, i, function(x){ quantile(x, .5) }, mcparam) )
   })
   names(counts.denoised) = paste0("nn_", n.neigh.grid)  
-  counts.denoised = append(counts , counts.denoised)
   return(counts.denoised)
 }
   
 
-counts.cosine.seq = addDenoising(counts.cosine.seq, mcparam)
-counts.cosine.imputed.q70 = addDenoising(counts.cosine.imputed.q70, mcparam)
-counts.cosine.imputed.q80 = addDenoising(counts.cosine.imputed.q80, mcparam)
-counts.cosine.imputed.q90 = addDenoising(counts.cosine.imputed.q90, mcparam)
-counts.cosine.imputed.mean = addDenoising(counts.cosine.imputed.mean, mcparam)
+counts.cosine.seq.denoised = addDenoising(counts.cosine.seq, mcparam)
+counts.cosine.imputed.q80.denoised = addDenoising(counts.cosine.imputed.q80, mcparam)
+counts.cosine.imputed.q90.denoised = addDenoising(counts.cosine.imputed.q90, mcparam)
+counts.cosine.imputed.mean.denoised = addDenoising(counts.cosine.imputed.mean, mcparam)
 
 
 
 # combine together
 performance.seq = list(
                        counts.cosine.seq = counts.cosine.seq,
-                       counts.cosine.imputed.q70 = counts.cosine.imputed.q70,
+                       counts.cosine.seq.denoised = counts.cosine.seq.denoised,
                        counts.cosine.imputed.q80 = counts.cosine.imputed.q80,
+                       counts.cosine.imputed.q80.denoised = counts.cosine.imputed.q80.denoised,
                        counts.cosine.imputed.q90 = counts.cosine.imputed.q90,
-                       counts.cosine.imputed.mean = counts.cosine.imputed.mean
+                       counts.cosine.imputed.q90.denoised = counts.cosine.imputed.q90.denoised,
+                       counts.cosine.imputed.mean = counts.cosine.imputed.mean,
+                       counts.cosine.imputed.mean.denoised = counts.cosine.imputed.mean.denoised
                        )
 
 saveRDS(performance.seq, file =  paste0( root.dir, "data/8_5/stitching/performance_seq2atlas_embryo1.rds"))
