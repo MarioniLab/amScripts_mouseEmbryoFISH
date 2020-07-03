@@ -106,7 +106,7 @@ saveRDS(mapping, file =  paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas
 ```
 ## atlas2atlas
 
-```{r seq-closest-cell, message=FALSE}
+```{r atlas-closest-cell, message=FALSE}
 
 cosine.atlas = assay(sce.atlas, "cosineNorm")
 batchFactor = factor(c(as.character(sce.atlas$sample)))
