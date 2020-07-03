@@ -48,6 +48,7 @@ root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
 source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
 
 load_embryo_8.5(dir = "cluster")
+#load_embryo_8.5(dir = "local")
 sce.seq = sce[!rownames(sce) == "Xist",]
 sce.seq$embryo_z = paste0(sce.seq$embryo, "_", sce.seq$z)
 assay(sce.seq, "cosineNorm_area") <- cosineNorm(assay(sce.seq, "logcounts_area"))
@@ -69,9 +70,6 @@ sce.atlas = sce.atlas[order(rownames(sce.atlas)),]
 
 
 n.neigh = 25
-genes = rownames(sce.seq)
-
-
 nPC.grid = c(25, 50, 100)
 embryo_z.grid = unique(sce.seq$embryo_z)
 mapping = bplapply(embryo_z.grid, function(embryo_z){
@@ -80,10 +78,11 @@ mapping = bplapply(embryo_z.grid, function(embryo_z){
   batchFactor = factor(c(as.character(current.sce.seq$pos), as.character(sce.atlas$sample)))
   
   mapping.embryo_z = lapply(nPC.grid, function(nPC){
+    print(nPC)
     mbpca = multiBatchPCA(sce.joint, batch = batchFactor, d = nPC)
     out = do.call(reducedMNN, mbpca)
     joint.pca = out$corrected
-    current.knns = queryKNN( joint.pca[colnames(sce.atlas),], joint.pca[colnames(sce.seq),], k = n.neigh, 
+    current.knns = queryKNN( joint.pca[colnames(sce.atlas),], joint.pca[colnames(current.sce.seq),], k = n.neigh, 
                            get.index = TRUE, get.distance = FALSE)
     cells.mapped = apply(current.knns$index, 1, function(x) colnames(sce.atlas)[x])
     colnames(cells.mapped) = colnames(current.sce.seq)
