@@ -66,6 +66,8 @@ sce.atlas = sce.atlas[order(rownames(sce.atlas)),]
 
 # Map to atlas
 
+## seq2atlas
+
 ```{r seq-closest-cell, message=FALSE}
 
 
@@ -96,7 +98,38 @@ saveRDS(mapping, file =  paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas
 
 
 ```
+## atlas2atlas
 
+```{r seq-closest-cell, message=FALSE}
+
+cosine.atlas = assay(sce.atlas, "cosineNorm")
+batchFactor = factor(c(as.character(sce.atlas$sample)))
+
+
+n.neigh = 25
+nPC.grid = c(25, 50, 100)
+sample.grid = unique(sce.atlas$sample)
+mapping = bplapply(sample.grid, function(sample){
+  mapping.sample = lapply(nPC.grid, function(nPC){
+    print(nPC)
+    mbpca = multiBatchPCA(cosine.atlas, batch = batchFactor, d = nPC)
+    out = do.call(reducedMNN, mbpca)
+    atlas.pca = out$corrected
+    current.knns = queryKNN( atlas.pca[colnames(sce.atlas) %in% colnames(sce.atlas[, sce.atlas$sample == sample]),], 
+                             atlas.pca[!colnames(sce.atlas) %in% colnames(sce.atlas[, sce.atlas$sample == sample]),], k = n.neigh, 
+                           get.index = TRUE, get.distance = FALSE)
+    cells.mapped = apply(current.knns$index, 1, function(x) colnames(sce.atlas)[x])
+    colnames(cells.mapped) = colnames(current.sce.seq)
+    return(cells.mapped)
+  })
+  names(mapping.sample) = paste0("nPC_", nPC.grid)
+  return(mapping.sample)
+}, BPPARAM = mcparam )
+names(mapping) = sample.grid
+saveRDS(mapping, file =  paste0( root.dir, "data/8_5/stitching/mapping_atlas2atlas_allGenes_diffPC.rds"))
+
+
+```
 
 
 #Session Info
