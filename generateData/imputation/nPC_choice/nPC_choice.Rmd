@@ -118,11 +118,11 @@ mapping = bplapply(sample.grid, function(sample){
     mbpca = multiBatchPCA(cosine.atlas, batch = batchFactor, d = nPC)
     out = do.call(reducedMNN, mbpca)
     atlas.pca = out$corrected
-    current.knns = queryKNN( atlas.pca[colnames(sce.atlas) %in% colnames(sce.atlas[, sce.atlas$sample == sample]),], 
-                             atlas.pca[!colnames(sce.atlas) %in% colnames(sce.atlas[, sce.atlas$sample == sample]),], k = n.neigh, 
+    current.knns = queryKNN( atlas.pca[colnames(sce.atlas[, sce.atlas$sample == sample]),], 
+                             atlas.pca[!colnames(sce.atlas[, sce.atlas$sample == sample]),], k = n.neigh, 
                            get.index = TRUE, get.distance = FALSE)
     cells.mapped = apply(current.knns$index, 1, function(x) colnames(sce.atlas)[x])
-    colnames(cells.mapped) = colnames(current.sce.seq)
+    colnames(cells.mapped) = colnames(colnames(sce.atlas[, sce.atlas$sample == sample]))
     return(cells.mapped)
   })
   names(mapping.sample) = paste0("nPC_", nPC.grid)
