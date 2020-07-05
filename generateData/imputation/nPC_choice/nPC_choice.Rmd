@@ -61,6 +61,9 @@ sce.seq = sce.seq[order(rownames(sce.seq)),]
 sce.atlas = sce.atlas[order(rownames(sce.atlas)),]
 
 
+n.neigh = 25
+nPC.grid = c(25, 50, 75, 100)
+
 
 ```
 
@@ -70,9 +73,6 @@ sce.atlas = sce.atlas[order(rownames(sce.atlas)),]
 
 ```{r seq-closest-cell, message=FALSE}
 
-
-n.neigh = 25
-nPC.grid = c(25, 50, 100)
 embryo_z.grid = unique(sce.seq$embryo_z)
 mapping = bplapply(embryo_z.grid, function(embryo_z){
   current.sce.seq = sce.seq[,sce.seq$embryo_z == embryo_z]
@@ -94,12 +94,12 @@ mapping = bplapply(embryo_z.grid, function(embryo_z){
   return(mapping.embryo_z)
 }, BPPARAM = mcparam )
 names(mapping) = embryo_z.grid
-mapping = transpose(mapping)
-for (i in 1:length(mapping)){
-  current.mapping = mapping[[i]]
-  current.mapping = do.call(cbind, current.mapping)
-  mapping[[i]] = current.mapping
-}
+#mapping = transpose(mapping)
+#for (i in 1:length(mapping)){
+#  current.mapping = mapping[[i]]
+#  current.mapping = do.call(cbind, current.mapping)
+#  mapping[[i]] = current.mapping
+#}
 saveRDS(mapping, file =  paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_allGenes_diffPC.rds"))
 
 
@@ -111,9 +111,6 @@ saveRDS(mapping, file =  paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas
 cosine.atlas = assay(sce.atlas, "cosineNorm")
 batchFactor = factor(c(as.character(sce.atlas$sample)))
 
-
-n.neigh = 25
-nPC.grid = c(25, 50, 100)
 sample.grid = unique(sce.atlas$sample)
 mapping = bplapply(sample.grid, function(sample){
   mapping.sample = lapply(nPC.grid, function(nPC){
@@ -132,12 +129,12 @@ mapping = bplapply(sample.grid, function(sample){
   return(mapping.sample)
 }, BPPARAM = mcparam )
 names(mapping) = sample.grid
-mapping = transpose(mapping)
-for (i in 1:length(mapping)){
-  current.mapping = mapping[[i]]
-  current.mapping = do.call(cbind, current.mapping)
-  mapping[[i]] = current.mapping
-}
+#mapping = transpose(mapping)
+#for (i in 1:length(mapping)){
+#  current.mapping = mapping[[i]]
+#  current.mapping = do.call(cbind, current.mapping)
+#  mapping[[i]] = current.mapping
+#}
 saveRDS(mapping, file =  paste0( root.dir, "data/8_5/stitching/mapping_atlas2atlas_allGenes_diffPC.rds"))
 
 
