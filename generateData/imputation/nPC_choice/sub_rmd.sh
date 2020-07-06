@@ -12,7 +12,7 @@ script_name=map_nPC
 memory=55000
 r_command="rusage[mem=${memory}]"
 #num_processors
-nproc=3
+nproc=4
 
 smg=/nfs/research1/marioni/alsu/singularity/R1.simg
 script=/nfs/research1/marioni/alsu/spatial/mouse_embryo/amScripts_mouseEmbryoFISH/generateData/imputation/nPC_choice/run_rmd.R
