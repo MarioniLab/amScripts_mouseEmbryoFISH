@@ -62,7 +62,7 @@ sce.atlas = sce.atlas[order(rownames(sce.atlas)),]
 
 
 n.neigh = 25
-nPC.grid = c(25, 50, 75, 100)
+nPC.grid = c(25, 50, 75, 100, 150, 200, 250)
 
 
 ```

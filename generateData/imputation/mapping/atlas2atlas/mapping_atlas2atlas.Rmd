@@ -73,20 +73,26 @@ nPC = 100
 n.neigh = 25
 genes = rownames(sce.seq)
 
+unq.samples = unique(sce.atlas$sample)
 mapping = bplapply(genes, function(current.gene){
   current.sce.cosine = sce.cosine[!rownames(sce.cosine) == current.gene, ]
   mbpca = multiBatchPCA(current.sce.cosine, batch = batchFactor, d = nPC)
   out = do.call(reducedMNN, mbpca)
   atlas.pca = out$corrected
-  current.knns = queryKNN( atlas.pca, atlas.pca, k = (n.neigh + 1), 
+  mapping.currentFeatures = lapply(unq.samples, function(sample){
+    print(sample)
+    current.knns = queryKNN( atlas.pca[colnames(sce.atlas[, !sce.atlas$sample == sample]),], 
+                             atlas.pca[colnames(sce.atlas[, sce.atlas$sample == sample]),], k = n.neigh, 
                            get.index = TRUE, get.distance = FALSE)
-  cells.mapped = apply(current.knns$index, 1, function(x) colnames(sce.atlas)[x[2:(n.neigh + 1)]])
-  rownames(cells.mapped) = paste0(current.gene, "_", c(1:n.neigh))
-  return(cells.mapped)
+    cells.mapped = apply(current.knns$index, 1, function(x) colnames(sce.atlas)[x])
+    rownames(cells.mapped) = paste0(current.gene, "_", c(1:n.neigh))
+    colnames(cells.mapped) = colnames(sce.atlas[, sce.atlas$sample == sample])
+    return(cells.mapped)
+  })
+  mapping.currentFeatures = do.call(cbind, mapping.currentFeatures)
+  return(mapping.currentFeatures)
 }, BPPARAM = mcparam)
-
 mapping = do.call(rbind, mapping )
-colnames(mapping) = colnames(sce.atlas)
 saveRDS(mapping, file =  paste0( root.dir, "data/8_5/stitching/mapping_atlas2atlas.rds"))
 
 ```
