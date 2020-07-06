@@ -118,7 +118,7 @@ stat.imputed = bplapply(genes, function(current.gene){
   return(se.imputed)
   # fraction expressed
   frac.expressed.imputed = sapply(1:ncol(current.mapping), function(x){
-    return( mean( current.atlas[current.mapping[,x]]) > 0)
+    return( mean( current.atlas[current.mapping[,x]] > 0))
   })
   
   out = data.frame(mean.imputed = mean.imputed,
