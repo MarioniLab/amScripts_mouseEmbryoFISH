@@ -121,7 +121,7 @@ stat.imputed = bplapply(genes, function(current.gene){
     return( mean( current.atlas[current.mapping[,x]] > 0))
   })
   
-  out = data.frame(mean.imputed = mean.imputed,
+  out = list(mean.imputed = mean.imputed,
                    se.imputed = se.imputed,
                    frac.expressed.imputed = frac.expressed.imputed)
   
