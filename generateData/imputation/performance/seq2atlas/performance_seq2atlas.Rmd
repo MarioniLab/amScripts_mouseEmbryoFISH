@@ -140,6 +140,13 @@ frac.expressed.imputed = do.call(rbind, stat.imputed$frac.expressed.imputed)
 colnames(frac.expressed.imputed) = colnames(mapping)
 rownames(frac.expressed.imputed) = genes 
 
+performance.seq = list(
+                       mean.imputed = mean.imputed,
+                       se.imputed = se.imputed,
+                       frac.expressed.imputed = frac.expressed.imputed
+                       )
+saveRDS(performance.seq, file =  paste0( root.dir, "data/8_5/stitching/performance_seq2atlas.rds"))
+
 
 ```
 
@@ -207,14 +214,7 @@ colnames(spatial.coherency) = colnames(mapping)
 
 
 # combine together
-performance.seq = list(
-                       counts.cosine.seq = counts.cosine.seq,
-                       mean.imputed = mean.imputed,
-                       se.imputed = se.imputed,
-                       frac.expressed.imputed = frac.expressed.imputed,
-                       spatial.coherency = spatial.coherency
-                       )
-saveRDS(performance.seq, file =  paste0( root.dir, "data/8_5/stitching/performance_seq2atlas.rds"))
+saveRDS(spatial.coherency, file =  paste0( root.dir, "data/8_5/stitching/seq_spatialCoherency_seq2atlas.rds"))
 
 
 ```
