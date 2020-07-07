@@ -74,7 +74,7 @@ batchFactor = factor(c(as.character(sce.seq$embryo_pos_z), as.character(sce.atla
 
 ```{r seq-closest-cell, message=FALSE}
 
-nPC = 100
+nPC = 50
 n.neigh = 25
 genes = rownames(sce.seq)
 

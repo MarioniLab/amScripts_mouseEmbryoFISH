@@ -5,7 +5,7 @@ err_folder=${my_folder}/clust_err/spatial
 
 #SELECT SCRIPT
 #If you change this, you MUST update the wrapper's grep
-script_name=map_seq
+script_name=map_atlas
 
 #CHOOSE PARAMETERS
 #RAM in megabytes
