@@ -124,7 +124,21 @@ saveRDS(performance.atlas, file =  paste0( root.dir, "data/8_5/stitching/perform
 
 ```
 
+# Mapping entropy
 
+```{r map-entropy, message=FALSE, warning=FALSE}
+
+stat.mappingEntropy = lapply(1:ncol( mapping ), function(x){
+  cells.stat = table( mapping[,x] )
+  out = data.frame(cell = colnames(mapping)[x],
+                   mapping.entropy = length(cells.stat))
+  return(out)
+})
+stat.mappingEntropy = do.call(rbind, stat.mappingEntropy)
+saveRDS(stat.mappingEntropy, file =  paste0( root.dir, "data/8_5/stitching/mappingEntropy_atlas2atlas.rds"))
+
+
+```
 
 #Session Info
 
