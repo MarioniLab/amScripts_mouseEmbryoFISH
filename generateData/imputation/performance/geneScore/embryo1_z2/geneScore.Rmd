@@ -1,0 +1,132 @@
+---
+title: "Gene score"
+output:
+  BiocStyle::html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes  
+  html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: true
+    theme: united
+---
+
+Settings:
+
+nn = 25
+
+# Load dependencies and source data
+
+```{r load_data, message=FALSE}
+
+library(Matrix)
+library(scran)
+library(BiocParallel)
+library(BiocNeighbors)
+ncores = 5
+mcparam = MulticoreParam(workers = ncores)
+register(mcparam)
+library(igraph)
+library(reshape2)
+library(knitr)
+library(scater)
+library(scales)
+library(biomaRt)
+library(batchelor)
+library(irlba)
+library(batchelor)
+library(tibble)
+library(dplyr)
+library(purrr)
+
+root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
+#root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
+
+# load seq embryos
+load_embryo_8.5(dir = "cluster")
+#load_embryo_8.5(dir = "local")
+sce.seq = sce[!rownames(sce) == "Xist", ]
+
+# load atlas 
+sce.atlas = readRDS(paste0(root.dir, "data/reducedAtlas/E8_25__E8_5.rds"))
+sce.atlas = sce.atlas[rownames(sce.seq), sce.atlas$stage == "E8.5"]
+
+# order seq and atlas (in case, cant hurt, had troubles b4)
+sce.seq = sce.seq[order(rownames(sce.seq)),]
+sce.atlas = sce.atlas[order(rownames(sce.atlas)),]
+
+# load mappings
+mapping = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo1z2.rds"))
+sce.seq = sce.seq[, colnames(sce.seq) %in% colnames(mapping) ]
+
+mapping.atlas = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_atlas2atlas.rds"))
+# merge meta + CT annotation
+meta = data.frame( colData(sce.seq))
+
+# order
+mapping = mapping[, order(colnames(mapping))]
+sce.seq = sce.seq[,order(colnames(sce.seq))]
+counts.cosine.seq = as.matrix( cosineNorm(assay(sce.seq, "logcounts_area")) )
+counts.cosine.atlas = as.matrix( cosineNorm(assay(sce.atlas, "logcounts")) )
+genes = rownames(sce.seq)
+
+# se function with removing NAs
+stderr <- function(x, na.rm=FALSE) {
+  if (na.rm) x <- na.omit(x)
+  sqrt(var(x)/length(x))
+}
+
+
+```
+
+
+# Fraction non-zeros, mean and se
+
+```{r gene-score, message=FALSE, warning=FALSE}
+
+
+
+gene.score = bplapply(genes, function(current.gene){
+  current.atlas = counts.cosine.atlas[rownames(counts.cosine.atlas) == current.gene,]
+  current.mapping = mapping[grepl(current.gene, rownames(mapping)),]
+  current.mapping.atlas = mapping.atlas[grepl(current.gene, rownames(mapping.atlas)),]
+  
+  current.score = sapply(1:nrow(current.mapping), function(x){
+    current.mapped.cells = current.mapping[x,]
+    
+    current.stat.oneNeighbors = lapply(1:length(current.mapped.cells), function(i){
+      cell = current.mapped.cells[i]
+      out = data.frame(cell = cell,
+                       atlas = current.atlas[cell],
+                       imputed = mean(current.atlas[current.mapping.atlas[, cell]]) )
+      return(out)
+    })
+    current.stat.oneNeighbors = do.call(rbind, current.stat.oneNeighbors)
+    return( cor(current.stat.oneNeighbors$atlas, current.stat.oneNeighbors$imputed, method = "pearson") )
+  })
+  out = data.frame(gene = current.gene, 
+                   corr.mean = mean(current.score, na.rm = T),
+                   corr.se = stderr(current.score, na.rm = T))
+  return( out )
+}, BPPARAM = mcparam)
+gene.score = do.call(rbind, gene.score)
+saveRDS(gene.score, file =  paste0( root.dir, "data/8_5/stitching/geneScore_embryo1z2.rds"))
+
+
+
+```
+
+
+
+
+#Session Info
+
+```{r sessinf}
+
+sessionInfo()
+
+```
