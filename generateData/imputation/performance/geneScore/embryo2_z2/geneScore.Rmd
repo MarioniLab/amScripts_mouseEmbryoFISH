@@ -62,16 +62,15 @@ sce.atlas = sce.atlas[order(rownames(sce.atlas)),]
 # load mappings
 mapping = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo2z2.rds"))
 sce.seq = sce.seq[, colnames(sce.seq) %in% colnames(mapping) ]
+meta = data.frame( colData(sce.seq))
+
 
 mapping.atlas = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_atlas2atlas.rds"))
-# merge meta + CT annotation
-meta = data.frame( colData(sce.seq))
 
 # order
 mapping = mapping[, order(colnames(mapping))]
 sce.seq = sce.seq[,order(colnames(sce.seq))]
-counts.cosine.seq = as.matrix( cosineNorm(assay(sce.seq, "logcounts_area")) )
-counts.cosine.atlas = as.matrix( cosineNorm(assay(sce.atlas, "logcounts")) )
+counts.atlas = as.matrix( cosineNorm( assay(sce.atlas, "logcounts")))
 genes = rownames(sce.seq)
 
 # se function with removing NAs
@@ -84,41 +83,74 @@ stderr <- function(x, na.rm=FALSE) {
 ```
 
 
-# Fraction non-zeros, mean and se
+# Closest cell - corr
 
-```{r gene-score, message=FALSE, warning=FALSE}
+```{r gene-score-closest-cell, message=FALSE, warning=FALSE}
 
 
 
 gene.score = bplapply(genes, function(current.gene){
-  current.atlas = counts.cosine.atlas[rownames(counts.cosine.atlas) == current.gene,]
-  current.mapping = mapping[grepl(current.gene, rownames(mapping)),]
-  current.mapping.atlas = mapping.atlas[grepl(current.gene, rownames(mapping.atlas)),]
+  current.atlas = counts.atlas[rownames(counts.atlas) == current.gene,]
+  current.mapping = mapping[rownames(mapping) == paste0( current.gene, "_1") ,]
+  current.mapping.atlas = mapping.atlas[grepl(paste0( current.gene, "_"), rownames(mapping.atlas)),]
   
-  current.score = sapply(1:nrow(current.mapping), function(x){
-    current.mapped.cells = current.mapping[x,]
-    
-    current.stat.oneNeighbors = lapply(1:length(current.mapped.cells), function(i){
-      cell = current.mapped.cells[i]
-      out = data.frame(cell = cell,
+  current.score = lapply(1:length(current.mapping), function(i){
+    cell = current.mapping[i]
+    out = data.frame(cell = cell,
                        atlas = current.atlas[cell],
                        imputed = mean(current.atlas[current.mapping.atlas[, cell]]) )
-      return(out)
-    })
-    current.stat.oneNeighbors = do.call(rbind, current.stat.oneNeighbors)
-    return( cor(current.stat.oneNeighbors$atlas, current.stat.oneNeighbors$imputed, method = "pearson") )
+    return(out)
   })
+  current.score = do.call(rbind, current.score)
   out = data.frame(gene = current.gene, 
-                   corr.mean = mean(current.score, na.rm = T),
-                   corr.se = stderr(current.score, na.rm = T))
+                   gene.score = cor(current.score$atlas, current.score$imputed, method = "pearson") 
+                   )
   return( out )
 }, BPPARAM = mcparam)
 gene.score = do.call(rbind, gene.score)
-saveRDS(gene.score, file =  paste0( root.dir, "data/8_5/stitching/geneScore_embryo2z2.rds"))
-
+saveRDS(gene.score, file =  paste0( root.dir, "data/8_5/stitching/geneScore_closestCell_embryo2z2.rds"))
 
 
 ```
+
+
+
+
+<!-- # Fraction non-zeros, mean and se -->
+
+<!-- ```{r gene-score, message=FALSE, warning=FALSE} -->
+
+
+
+<!-- gene.score = bplapply(genes, function(current.gene){ -->
+<!--   current.atlas = counts.cosine.atlas[rownames(counts.cosine.atlas) == current.gene,] -->
+<!--   current.mapping = mapping[grepl(current.gene, rownames(mapping)),] -->
+<!--   current.mapping.atlas = mapping.atlas[grepl(current.gene, rownames(mapping.atlas)),] -->
+
+<!--   current.score = sapply(1:nrow(current.mapping), function(x){ -->
+<!--     current.mapped.cells = current.mapping[x,] -->
+
+<!--     current.stat.oneNeighbors = lapply(1:length(current.mapped.cells), function(i){ -->
+<!--       cell = current.mapped.cells[i] -->
+<!--       out = data.frame(cell = cell, -->
+<!--                        atlas = current.atlas[cell], -->
+<!--                        imputed = mean(current.atlas[current.mapping.atlas[, cell]]) ) -->
+<!--       return(out) -->
+<!--     }) -->
+<!--     current.stat.oneNeighbors = do.call(rbind, current.stat.oneNeighbors) -->
+<!--     return( cor(current.stat.oneNeighbors$atlas, current.stat.oneNeighbors$imputed, method = "pearson") ) -->
+<!--   }) -->
+<!--   out = data.frame(gene = current.gene,  -->
+<!--                    corr.mean = mean(current.score, na.rm = T), -->
+<!--                    corr.se = stderr(current.score, na.rm = T)) -->
+<!--   return( out ) -->
+<!-- }, BPPARAM = mcparam) -->
+<!-- gene.score = do.call(rbind, gene.score) -->
+<!-- saveRDS(gene.score, file =  paste0( root.dir, "data/8_5/stitching/geneScore_embryo1z2.rds")) -->
+
+
+
+<!-- ``` -->
 
 
 
