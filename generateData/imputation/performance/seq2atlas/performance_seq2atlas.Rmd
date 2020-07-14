@@ -103,7 +103,7 @@ stderr <- function(x, na.rm=FALSE) {
 
 mean.imputed = bplapply(genes, function(current.gene){
   current.atlas = counts.cosine.atlas[rownames(counts.cosine.atlas) == current.gene,]
-  current.mapping = mapping[grepl(current.gene, rownames(mapping)),]
+  current.mapping = mapping[grepl(paste0( current.gene, "_"), rownames(mapping)),]
   # mean
   current.mean.imputed = sapply(1:ncol(current.mapping), function(x){
     return( mean( current.atlas[current.mapping[,x]]) )
@@ -116,7 +116,7 @@ rownames(mean.imputed) = genes
 
 se.imputed = bplapply(genes, function(current.gene){
   current.atlas = counts.cosine.atlas[rownames(counts.cosine.atlas) == current.gene,]
-  current.mapping = mapping[grepl(current.gene, rownames(mapping)),]
+  current.mapping = mapping[grepl(paste0( current.gene, "_"), rownames(mapping)),]
   # mean
   current.se.imputed = sapply(1:ncol(current.mapping), function(x){
     return( stderr( current.atlas[current.mapping[,x]]) )
@@ -129,7 +129,7 @@ rownames(se.imputed) = genes
 
 fracExpressed.imputed = bplapply(genes, function(current.gene){
   current.atlas = counts.cosine.atlas[rownames(counts.cosine.atlas) == current.gene,]
-  current.mapping = mapping[grepl(current.gene, rownames(mapping)),]
+  current.mapping = mapping[grepl(paste0( current.gene, "_"), rownames(mapping)),]
   # mean
   current.fracExpressed.imputed = sapply(1:ncol(current.mapping), function(x){
     return( mean( current.atlas[current.mapping[,x]] > 0))
@@ -221,8 +221,6 @@ spatial.coherency = bplapply(colnames(mapping), function(current.cell){
 
 spatial.coherency = do.call(cbind, spatial.coherency)
 colnames(spatial.coherency) = colnames(mapping)
-
-
 saveRDS(spatial.coherency, file =  paste0( root.dir, "data/8_5/stitching/seq_spatialCoherency_seq2atlas.rds"))
 
 
