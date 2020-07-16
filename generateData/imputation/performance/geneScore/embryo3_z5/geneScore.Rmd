@@ -82,8 +82,7 @@ stderr <- function(x, na.rm=FALSE) {
 
 ```
 
-
-# Average across all neighbors
+# All cells combined
 
 ```{r gene-score-all-cells, message=FALSE, warning=FALSE}
 
@@ -93,24 +92,53 @@ gene.score = bplapply(genes, function(current.gene){
   current.mapping = mapping[grepl(paste0( current.gene, "_"), rownames(mapping)),]
   current.mapping.atlas = mapping.atlas[grepl(paste0( current.gene, "_"), rownames(mapping.atlas)),]
   
-  # real 
-  stat.all = lapply(1:nrow(current.mapping), function(current.neighbor){
-    
-    tab = table(current.mapping[current.neighbor, ])
-    cells = names(tab)
-    df = data.frame(atlas = current.atlas[cells], imputed = apply(current.mapping.atlas[, cells] , 2, function(x) mean(current.atlas[x]) ) )
-  
-    weighted_corr <- cov.wt(df, wt = as.numeric(tab), cor = TRUE)
-    out = data.frame( gene = current.gene, neighbor = current.neighbor, score = as.numeric( weighted_corr$cor[1,2]))
-  })
-  stat.all = do.call(rbind, stat.all)
-  return( stat.all )
+  current.mapping.vec = c(current.mapping)
+  tab = table(current.mapping.vec)
+  cells = names(tab)
+  df = data.frame(atlas = current.atlas[cells], imputed = apply(current.mapping.atlas[, cells] , 2, function(x) mean(current.atlas[x]) ) )
+  unweighted_corr <- cov.wt(df, wt = as.numeric(tab), cor = TRUE)
+  weighted_corr <- cov.wt(df, cor = TRUE)
+  out = data.frame( gene = current.gene,  unweighted.score = as.numeric( unweighted_corr$cor[1,2]), weighted.score = as.numeric( weighted_corr$cor[1,2]))
+  return( out )
 }, BPPARAM = mcparam)
 gene.score = do.call(rbind, gene.score)
-saveRDS(gene.score, file =  paste0( root.dir, "data/8_5/stitching/geneScore_embryo3z5.rds"))
+saveRDS(gene.score, file =  paste0( root.dir, "data/8_5/stitching/geneScore_allCombined_embryo3z5.rds"))
+
 
 
 ```
+
+<!-- # Neighbor by neighbor -->
+
+<!-- ```{r gene-score-neighbor-by-neighbor, message=FALSE, warning=FALSE} -->
+
+
+<!-- gene.score = bplapply(genes, function(current.gene){ -->
+<!--   current.atlas = counts.atlas[rownames(counts.atlas) == current.gene,] -->
+<!--   current.mapping = mapping[grepl(paste0( current.gene, "_"), rownames(mapping)),] -->
+<!--   current.mapping.atlas = mapping.atlas[grepl(paste0( current.gene, "_"), rownames(mapping.atlas)),] -->
+
+<!--   # real  -->
+<!--   stat.all = lapply(1:nrow(current.mapping), function(current.neighbor){ -->
+
+<!--     tab = table(current.mapping[current.neighbor, ]) -->
+<!--     cells = names(tab) -->
+<!--     df = data.frame(atlas = current.atlas[cells], imputed = apply(current.mapping.atlas[, cells] , 2, function(x) mean(current.atlas[x]) ) ) -->
+
+<!--     weighted_corr <- cov.wt(df, wt = as.numeric(tab), cor = TRUE) -->
+<!--     out = data.frame( gene = current.gene, neighbor = current.neighbor, score = as.numeric( weighted_corr$cor[1,2])) -->
+<!--   }) -->
+<!--   stat.all = do.call(rbind, stat.all) -->
+<!--   return( stat.all ) -->
+<!-- }, BPPARAM = mcparam) -->
+<!-- gene.score = do.call(rbind, gene.score) -->
+<!-- saveRDS(gene.score, file =  paste0( root.dir, "data/8_5/stitching/geneScore_embryo3z5.rds")) -->
+
+
+
+<!-- ``` -->
+
+
 
 
 
