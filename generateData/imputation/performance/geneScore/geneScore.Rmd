@@ -124,8 +124,8 @@ gene.score.allEmbryoZ = bplapply(unq.embryo_z, function(x){
                       score.cosine.closestCell = as.numeric(score.cosine.closestCell$cor[1,2]), 
                       score.logcounts.weighted = as.numeric(score.logcounts.weighted$cor[1,2]), 
                       score.logcounts.unweighted = as.numeric(score.logcounts.unweighted$cor[1,2]), 
-                      score.cosine.weighted = as.numeric(score.logcounts.weighted$cor[1,2]),
-                      score.cosine.unweighted = as.numeric(score.logcounts.weighted$cor[1,2])
+                      score.cosine.weighted = as.numeric(score.cosine.weighted$cor[1,2]),
+                      score.cosine.unweighted = as.numeric(score.cosine.unweighted$cor[1,2])
                       )
     return(out)
   })
