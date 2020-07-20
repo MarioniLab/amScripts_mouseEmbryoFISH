@@ -53,7 +53,8 @@ idx = meta$embryo == "embryo2" & meta$z == 2
 sce.seq = sce.seq[,colnames(sce.seq) %in% meta$uniqueID[idx]]
 meta = meta[idx,]
 assay(sce.seq, "cosineNorm_area") <- cosineNorm(assay(sce.seq, "logcounts_area"))
-
+assay(sce.seq, "cpm") <- logcounts(scater::logNormCounts(sce.seq, size_factors = sce.seq$total))
+assay(sce.seq, "cosineNorm_cpm") <- cosineNorm(assay(sce.seq, "cpm"))
 
 # load atlas 
 sce.atlas = readRDS(paste0(root.dir, "data/reducedAtlas/E8_25__E8_5.rds"))
@@ -64,7 +65,7 @@ sce.seq = sce.seq[order(rownames(sce.seq)),]
 sce.atlas = sce.atlas[order(rownames(sce.atlas)),]
 
 # join
-sce.joint = cbind(assay(sce.seq, "cosineNorm_area"), assay(sce.atlas, "cosineNorm"))
+sce.joint = cbind(assay(sce.seq, "cosineNorm_cpm"), assay(sce.atlas, "cosineNorm"))
 batchFactor = factor(c(as.character(sce.seq$embryo_pos_z), as.character(sce.atlas$sample)))
 
 
@@ -92,7 +93,7 @@ mapping = bplapply(genes, function(current.gene){
 
 mapping = do.call(rbind, mapping )
 colnames(mapping) = colnames(sce.seq)
-saveRDS(mapping, file =  paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo2z2.rds"))
+saveRDS(mapping, file =  paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo2z2_libsize.rds"))
 
 ```
 
