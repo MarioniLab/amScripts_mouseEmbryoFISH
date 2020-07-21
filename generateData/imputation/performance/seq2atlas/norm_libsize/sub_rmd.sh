@@ -9,7 +9,7 @@ script_name=perf_seq_lib
 
 #CHOOSE PARAMETERS
 #RAM in megabytes
-memory=90000
+memory=94000
 r_command="rusage[mem=${memory}]"
 #num_processors
 nproc=4
