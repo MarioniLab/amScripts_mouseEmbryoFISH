@@ -1,0 +1,3 @@
+library(rmarkdown)
+
+render("/nfs/research1/marioni/alsu/spatial/mouse_embryo/amScripts_mouseEmbryoFISH/generateData/imputation/mapping_diffNorm_contingency/mapping_diffNorm_contingency.Rmd")
