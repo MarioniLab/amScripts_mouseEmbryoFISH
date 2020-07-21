@@ -11,6 +11,9 @@ load_embryo_8.5 = function(dir = "local"){
   }
   
   sce = readRDS( paste0( data.dir , "E8.5_sce_filt_unlabelled.Rds"))
+  # add normalization by libsize 
+  assay(sce, "cpm") <- logcounts(scater::logNormCounts(sce, size_factors = sce$total))
+  
   meta = colData(sce)
   meta = data.frame(meta)
   
@@ -247,7 +250,7 @@ denoisingCounts = function(counts, meta, neigh.net, n.neigh, avg_metric, mcparam
           current.counts = apply(current.counts, 1, mean)
         } else if (avg_metric == "median"){
           current.counts = apply(current.counts, 1, median)
-        }
+        } 
         return(current.counts)
       } else {
         return(counts[,cell])
