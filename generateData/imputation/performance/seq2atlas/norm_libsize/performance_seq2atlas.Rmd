@@ -1,0 +1,287 @@
+---
+title: "Mapping performance seq2atlas"
+output:
+  BiocStyle::html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes  
+  html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: true
+    theme: united
+---
+
+Settings:
+
+nn = 25
+
+# Load dependencies and source data
+
+```{r load_data, message=FALSE}
+
+library(Matrix)
+library(scran)
+library(BiocParallel)
+library(BiocNeighbors)
+ncores = 3
+mcparam = MulticoreParam(workers = ncores)
+register(mcparam)
+library(igraph)
+library(reshape2)
+library(knitr)
+library(scater)
+library(scales)
+library(biomaRt)
+library(batchelor)
+library(irlba)
+library(batchelor)
+library(tibble)
+library(dplyr)
+library(purrr)
+
+root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
+#root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
+
+# load seq embryos
+load_embryo_8.5(dir = "cluster")
+#load_embryo_8.5(dir = "local")
+sce.seq = sce[!rownames(sce) == "Xist", ]
+assay(sce.seq, "cpm") <- logcounts(scater::logNormCounts(sce.seq, size_factors = sce.seq$total))
+
+# load atlas 
+sce.atlas = readRDS(paste0(root.dir, "data/reducedAtlas/E8_25__E8_5.rds"))
+sce.atlas = sce.atlas[rownames(sce.seq), sce.atlas$stage == "E8.5"]
+
+# order seq and atlas (in case, cant hurt, had troubles b4)
+sce.seq = sce.seq[order(rownames(sce.seq)),]
+sce.atlas = sce.atlas[order(rownames(sce.atlas)),]
+
+# load mappings
+mapping.embryo1z2 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo1z2_libsize.rds"))
+mapping.embryo1z5 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo1z5_libsize.rds"))
+mapping.embryo2z2 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo2z2_libsize.rds"))
+mapping.embryo2z5 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo2z5_libsize.rds"))
+mapping.embryo3z2 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo3z2_libsize.rds"))
+mapping.embryo3z5 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo3z5_libsize.rds"))
+
+mapping = cbind(mapping.embryo1z2, mapping.embryo1z5, mapping.embryo2z2, mapping.embryo2z5, mapping.embryo3z2, mapping.embryo3z5)
+sce.seq = sce.seq[, colnames(sce.seq) %in% colnames(mapping) ]
+
+# merge meta + CT annotation
+meta = data.frame( colData(sce.seq))
+meta.CT = readRDS(paste0(root.dir, "data/8_5/source/iterMNN_mapping_dt.Rds"))
+meta = merge(meta, meta.CT, all.x = T, all.y = F)
+
+# order
+mapping = mapping[, order(colnames(mapping))]
+sce.seq = sce.seq[,order(colnames(sce.seq))]
+counts.cosine.seq = as.matrix( cosineNorm(assay(sce.seq, "cpm")) )
+counts.atlas = assay(sce.atlas, "logcounts")
+counts.cosine.atlas = as.matrix( cosineNorm(counts.atlas) )
+genes = rownames(sce.seq)
+
+# neigh.net
+neigh.net = readRDS(paste0(root.dir, "data/8_5/source/E8.5_neighbourGraph_1.3.Rds"))
+adjacency.list = adjacent_vertices(neigh.net, V(neigh.net), mode = "all")
+
+# se function with removing NAs
+stderr <- function(x, na.rm=FALSE) {
+  if (na.rm) x <- na.omit(x)
+  sqrt(var(x)/length(x))
+}
+
+
+```
+
+
+# Fraction non-zeros, mean and se
+
+```{r get-imputation, message=FALSE, warning=FALSE}
+
+
+
+
+mean.imputed = bplapply(genes, function(current.gene){
+  current.atlas = counts.atlas[rownames(counts.atlas) == current.gene,]
+  current.mapping = mapping[grepl(paste0( current.gene, "_"), rownames(mapping)),]
+  # mean
+  current.mean.imputed = sapply(1:ncol(current.mapping), function(x){
+    return( mean( current.atlas[current.mapping[,x]]) )
+  })
+  return(current.mean.imputed)
+}, BPPARAM = mcparam)
+mean.imputed = do.call(rbind, mean.imputed)
+colnames(mean.imputed) = colnames(mapping)
+rownames(mean.imputed) = genes
+
+se.imputed = bplapply(genes, function(current.gene){
+  current.atlas = counts.atlas[rownames(counts.atlas) == current.gene,]
+  current.mapping = mapping[grepl(paste0( current.gene, "_"), rownames(mapping)),]
+  # mean
+  current.se.imputed = sapply(1:ncol(current.mapping), function(x){
+    return( stderr( current.atlas[current.mapping[,x]]) )
+  })
+  return(current.se.imputed)
+}, BPPARAM = mcparam)
+se.imputed = do.call(rbind, se.imputed)
+colnames(se.imputed) = colnames(mapping)
+rownames(se.imputed) = genes
+
+fracExpressed.imputed = bplapply(genes, function(current.gene){
+  current.atlas = counts.atlas[rownames(counts.atlas) == current.gene,]
+  current.mapping = mapping[grepl(paste0( current.gene, "_"), rownames(mapping)),]
+  # mean
+  current.fracExpressed.imputed = sapply(1:ncol(current.mapping), function(x){
+    return( mean( current.atlas[current.mapping[,x]] > 0))
+  })
+  return(current.fracExpressed.imputed)
+}, BPPARAM = mcparam)
+fracExpressed.imputed = do.call(rbind, fracExpressed.imputed)
+colnames(fracExpressed.imputed) = colnames(mapping)
+rownames(fracExpressed.imputed) = genes
+
+
+
+
+mean.cosine.imputed = bplapply(genes, function(current.gene){
+  current.atlas = counts.cosine.atlas[rownames(counts.cosine.atlas) == current.gene,]
+  current.mapping = mapping[grepl(paste0( current.gene, "_"), rownames(mapping)),]
+  # mean
+  current.mean.imputed = sapply(1:ncol(current.mapping), function(x){
+    return( mean( current.atlas[current.mapping[,x]]) )
+  })
+  return(current.mean.imputed)
+}, BPPARAM = mcparam)
+mean.cosine.imputed = do.call(rbind, mean.cosine.imputed)
+colnames(mean.cosine.imputed) = colnames(mapping)
+rownames(mean.cosine.imputed) = genes
+
+se.cosine.imputed = bplapply(genes, function(current.gene){
+  current.atlas = counts.cosine.atlas[rownames(counts.cosine.atlas) == current.gene,]
+  current.mapping = mapping[grepl(paste0( current.gene, "_"), rownames(mapping)),]
+  # mean
+  current.se.imputed = sapply(1:ncol(current.mapping), function(x){
+    return( stderr( current.atlas[current.mapping[,x]]) )
+  })
+  return(current.se.imputed)
+}, BPPARAM = mcparam)
+se.cosine.imputed = do.call(rbind, se.cosine.imputed)
+colnames(se.cosine.imputed) = colnames(mapping)
+rownames(se.cosine.imputed) = genes
+
+fracExpressed.cosine.imputed = bplapply(genes, function(current.gene){
+  current.atlas = counts.cosine.atlas[rownames(counts.cosine.atlas) == current.gene,]
+  current.mapping = mapping[grepl(paste0( current.gene, "_"), rownames(mapping)),]
+  # mean
+  current.fracExpressed.imputed = sapply(1:ncol(current.mapping), function(x){
+    return( mean( current.atlas[current.mapping[,x]] > 0))
+  })
+  return(current.fracExpressed.imputed)
+}, BPPARAM = mcparam)
+fracExpressed.cosine.imputed = do.call(rbind, fracExpressed.cosine.imputed)
+colnames(fracExpressed.cosine.imputed) = colnames(mapping)
+rownames(fracExpressed.cosine.imputed) = genes
+
+
+
+
+performance.seq = list(mean.imputed = mean.imputed,
+                       se.imputed = se.imputed,
+                       fracExpressed.imputed = fracExpressed.imputed,
+                       mean.cosine.imputed = mean.cosine.imputed,
+                       se.cosine.imputed = se.cosine.imputed,
+                       fracExpressed.cosine.imputed = fracExpressed.cosine.imputed
+                       )
+saveRDS(performance.seq, file =  paste0( root.dir, "data/8_5/stitching/performance_seq2atlas_libsize.rds"))
+
+
+```
+
+# Mapping entropy
+
+```{r map-entropy, message=FALSE, warning=FALSE}
+
+stat.mappingEntropy = lapply(1:ncol( mapping ), function(x){
+  cells.stat = table( mapping[,x] )
+  out = data.frame(uniqueID = colnames(mapping)[x],
+                   mapping.entropy = length(cells.stat))
+  return(out)
+})
+stat.mappingEntropy = do.call(rbind, stat.mappingEntropy)
+saveRDS(stat.mappingEntropy, file =  paste0( root.dir, "data/8_5/stitching/mappingEntropy_seq2atlas_libsize.rds"))
+
+
+```
+
+# How often seq cells are coherent with their neighbors
+
+
+```{r spatial-coherency, message=FALSE, warning=FALSE}
+# 
+n.neigh = 2
+spatial.coherency = bplapply(colnames(mapping), function(current.cell){
+  current.CT = meta$iterMNN_stable[meta$uniqueID == current.cell]
+  current.adjacency.list = adjacency.list[names(adjacency.list) == current.cell]
+  if (!is_empty(current.adjacency.list)){
+    if (n.neigh == 1){
+      neighbor.cells = as_ids(current.adjacency.list[[1]])
+    } else if (n.neigh == 2){
+      neighbor.cells = as_ids(current.adjacency.list[[1]])
+      second.neighbor.cells = sapply(neighbor.cells, function(x){
+        current.second.adjacency.list = adjacency.list[names(adjacency.list) == x]
+        return(as_ids(current.second.adjacency.list[[1]]))
+      })
+      neighbor.cells = unique(c(neighbor.cells, unlist(second.neighbor.cells)))
+    }
+    neighbor.CT = sapply(neighbor.cells, function(x) meta$iterMNN_stable[meta$uniqueID == x])
+    cells.sameCT = c( names(neighbor.CT)[neighbor.CT == current.CT])
+    cells.sameCT = setdiff(cells.sameCT, current.cell)
+    if (length(cells.sameCT) > 1){
+      current.counts.neighbors = counts.cosine.seq[,cells.sameCT] > 0
+      current.counts = counts.cosine.seq[, current.cell] > 0
+      current.spatial.consistency = sapply(genes, function(current.gene){
+        return(mean(current.counts[current.gene] == current.counts.neighbors[current.gene,]))
+      })
+        #current.n.neighbors = length(cells.sameCT)
+    }
+    else if (length(cells.sameCT) == 1){
+      current.counts.neighbors = counts.cosine.seq[,cells.sameCT] > 0
+      current.counts = counts.cosine.seq[, current.cell] > 0
+      current.spatial.consistency = sapply(genes, function(current.gene){
+        return(mean(current.counts[current.gene] == current.counts.neighbors[current.gene]))
+      })
+        #current.n.neighbors = length(cells.sameCT)
+    }
+    else {
+      current.spatial.consistency = rep(c(NA), times = length(genes))
+      names(current.spatial.consistency) = genes
+        #current.n.neighbors = 0
+    }
+  }
+  else {
+    current.spatial.consistency = rep(c(NA), times = length(genes))
+    names(current.spatial.consistency) = genes
+    #current.n.neighbors = 0
+  }
+  return(current.spatial.consistency)
+}, BPPARAM = mcparam)
+
+spatial.coherency = do.call(cbind, spatial.coherency)
+colnames(spatial.coherency) = colnames(mapping)
+saveRDS(spatial.coherency, file =  paste0( root.dir, "data/8_5/stitching/seq_spatialCoherency_seq2atlas_libsize.rds"))
+
+
+```
+
+
+#Session Info
+
+```{r sessinf}
+
+sessionInfo()
+
+```
