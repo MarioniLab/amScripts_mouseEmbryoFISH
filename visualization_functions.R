@@ -25,9 +25,13 @@ celltype_colours = c("Epiblast" = "#635547",
                      "Endothelium" = "#ff891c",
                      "Blood progenitors 1" = "#f9decf",
                      "Blood progenitors 2" = "#c9a997",
+                     
                      "Erythroid1" = "#C72228",
                      "Erythroid2" = "#f79083",
                      "Erythroid3" = "#EF4E22",
+                     
+                     "Erythroid" = "#f79083",
+                     "Blood progenitors" = "#f9decf",
                      
                      "NMP" = "#8EC792",
                      
@@ -42,8 +46,18 @@ celltype_colours = c("Epiblast" = "#635547",
                      "Visceral endoderm" = "#F6BFCB",
                      "ExE endoderm" = "#7F6874",
                      "ExE ectoderm" = "#989898",
-                     "Parietal endoderm" = "#1A1A1A"
+                     "Parietal endoderm" = "#1A1A1A",
                      
+                     "Unknown" = "#000000",
+                     
+                     # somitic and paraxial types
+                     # colour from T chimera paper submission
+                     "Cranial mesoderm" = "#77441B",
+                     "Anterior somitic tissues" = "#F90026",
+                     "Sclerotome" = "#A10037",
+                     "Dermomyotome" = "#DA5921",
+                     "Posterior somitic tissues" = "#E1C239",
+                     "Presomitic mesoderm" = "#9DD84A"
 )
 
 stage_colours = c("E6.5" = "#D53E4F",
@@ -102,25 +116,19 @@ scale_fill_Publication <- function(...){
                    "#5B4534", "#FDE8DC", "#404E55", "#0089A3", "#CB7E98", "#A4E804", "#324E72", "#6A3A4C")), ...)
 }
 
+gut_suborgans_colours = c("0" = "gray80" , "Lung 1" = "deeppink4", "Lung 2" = "lightpink2", "Pancreas 1" = "seagreen4", 
+                          "Pancreas 2" = "darkseagreen", "Thymus" = "skyblue2", "Small intestine" = "navyblue", 
+                          "Thyroid" = "darkslategrey", "Liver" = "tan2" , "Large intestine/Colon" = "lightpink4"
+)
 
-getDensityPlotsPerGene = function(gene, counts, meta, figures.dir){
-  counts.gene = data.frame( uniqueID = colnames(counts ),
-                            counts = counts[gene,])
-  p <- ggplot(counts.gene, aes(x = counts)) +
-    geom_histogram(alpha=.5, color="black", fill="firebrick") + 
-    scale_y_continuous(breaks=sort( unique(counts.gene$counts ))) +
-    ggtitle(gene)
-  ggsave(filename = paste0(figures.dir, gene, ".png"), plot = p, width = 15, height = 10)
+scale_color_batch_atlas <- function(...){
+  library(scales)
+  discrete_scale("colour", "Publication",
+                 manual_pal(values = c( 
+                   "black" , "tan2", "deeppink4", "skyblue2", 
+                   "darkseagreen", "navyblue","lightpink2", 
+                    "darkslategrey",  "seagreen4" , "gray80")), ...)
 }
 
-getAreaExpressionPerGene = function(gene, counts, meta, figures.dir){
-  require(viridis)
-  counts.gene = data.frame( uniqueID = colnames(counts ),
-                            counts = counts[gene,], 
-                            area = meta$Area)
-  p <- ggplot(counts.gene, aes(x = area, y = counts)) +
-    ggtitle( paste0( gene, ": R = ", round( cor(counts.gene$area, counts.gene$counts, method = "pearson") , 2))) +
-    geom_bin2d(bins = 100) +
-    scale_fill_continuous(type = "viridis")
-  ggsave(filename = paste0(figures.dir, gene, ".png"), plot = p, width = 15, height = 10)
-}
+                   
+                   
