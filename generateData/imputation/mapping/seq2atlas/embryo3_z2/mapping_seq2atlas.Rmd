@@ -54,7 +54,7 @@ sce.seq = sce.seq[,colnames(sce.seq) %in% meta$uniqueID[idx]]
 meta = meta[idx,]
 assay(sce.seq, "cosineNorm_area") <- cosineNorm(assay(sce.seq, "logcounts_area"))
 #assay(sce.seq, "cpm") <- logcounts(scater::logNormCounts(sce.seq, size_factors = sce.seq$total))
-assay(sce.seq, "cosineNorm_cpm") <- cosineNorm(assay(sce.seq, "cpm"))
+assay(sce.seq, "cosineNorm_cpm") <- cosineNorm(assay(sce.seq, "cpm_wo_xist"))
 
 # load atlas 
 sce.atlas = readRDS(paste0(root.dir, "data/reducedAtlas/E8_25__E8_5.rds"))
