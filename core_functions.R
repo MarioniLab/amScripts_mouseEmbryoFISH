@@ -13,6 +13,8 @@ load_embryo_8.5 = function(dir = "local"){
   sce = readRDS( paste0( data.dir , "E8.5_sce_filt_unlabelled.Rds"))
   # add normalization by libsize 
   assay(sce, "cpm") <- logcounts(scater::logNormCounts(sce, size_factors = sce$total))
+  assay(sce, "cpm_wo_xist") <- logcounts(scater::logNormCounts(sce, size_factors = as.numeric( sce$total - counts( sce["Xist"] )) ))
+  
   
   meta = colData(sce)
   meta = data.frame(meta)
