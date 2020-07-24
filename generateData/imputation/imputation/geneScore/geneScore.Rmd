@@ -47,11 +47,12 @@ source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
 
 # load seq embryos
 load_embryo_8.5(dir = "cluster")
+#load_embryo_8.5(dir = "local")
 sce.seq = sce[!rownames(sce) == "Xist", ]
 
 # load atlas 
 sce.atlas = readRDS(paste0(root.dir, "data/reducedAtlas/E8_25__E8_5.rds"))
-sce.atlas = sce.atlas[, sce.atlas$stage == "E8.5"]
+sce.atlas = sce.atlas[rownames(sce.seq) , sce.atlas$stage == "E8.5"]
 
 meta = data.frame( colData(sce.seq) )
 meta.CT = readRDS(paste0(root.dir, "data/8_5/source/iterMNN_mapping_dt.Rds"))
@@ -81,6 +82,7 @@ counts.cosine.atlas = as.matrix( cosineNorm( assay(sce.atlas, "logcounts")))
 
 genes = rownames(sce.atlas)
 
+
 ```
 
 # Gene score
@@ -89,30 +91,30 @@ genes = rownames(sce.atlas)
 
 
 unq.embryo_z = unique(meta$embryo_z)
-gene.score.allEmbryoZ = bplapply(unq.embryo_z, function(x){
+gene.score.allEmbryoZ = lapply(unq.embryo_z, function(x){
   current.mapping = mapping[, colnames(mapping) %in% meta$uniqueID[meta$embryo_z == x]]
   tab = table(c(current.mapping))
   cells = names(tab) 
   current.mapping.atlas = mapping.atlas[, cells]
   
-  gene.score.oneEmbryoZ = lapply(genes, function(current.gene){
+  gene.score.oneEmbryoZ = bplapply(genes, function(current.gene){
     current.cosine.atlas = counts.cosine.atlas[rownames(counts.cosine.atlas) == current.gene,]
     current.atlas = counts.atlas[rownames(counts.atlas) == current.gene,]
     
     df = data.frame(atlas = current.atlas[cells], imputed = apply(current.mapping.atlas, 2, function(x) mean(current.atlas[x]) ) ) 
-    score.logcounts.weighted <- cov.wt(df, wt = as.numeric(tab), cor = TRUE)
+    score.logcounts <- cov.wt(df, wt = as.numeric(tab), cor = TRUE)
     df = data.frame(atlas = current.cosine.atlas[cells], imputed = apply(current.mapping.atlas , 2, function(x) mean(current.cosine.atlas[x]) ) ) 
-    score.cosine.weighted <- cov.wt(df, wt = as.numeric(tab), cor = TRUE)
+    score.cosine <- cov.wt(df, wt = as.numeric(tab), cor = TRUE)
       
     out = data.frame( gene = current.gene,  embryo_z = x, 
-                      score.logcounts = as.numeric(score.logcounts.weighted$cor[1,2]), 
-                      score.cosine = as.numeric(score.cosine.weighted$cor[1,2])
+                      score.logcounts = as.numeric(score.logcounts$cor[1,2]), 
+                      score.cosine = as.numeric(score.cosine$cor[1,2])
                       )
     return(out)
-  })
+  }, BPPARAM = mcparam)
   gene.score.oneEmbryoZ = do.call(rbind, gene.score.oneEmbryoZ)
   return(gene.score.oneEmbryoZ)
-}, BPPARAM = mcparam)
+})
 gene.score.allEmbryoZ = do.call(rbind, gene.score.allEmbryoZ)
 saveRDS(gene.score.allEmbryoZ, file =  paste0( root.dir, "data/8_5/stitching/geneScore_imputation.rds"))
 
