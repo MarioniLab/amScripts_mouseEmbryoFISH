@@ -1,5 +1,5 @@
 ---
-title: "Gene score"
+title: "Gene score - performance"
 output:
   BiocStyle::html_document:
     code_folding: hide
@@ -14,9 +14,6 @@ output:
     theme: united
 ---
 
-Settings:
-
-nn = 25
 
 # Load dependencies and source data
 
@@ -65,12 +62,12 @@ meta$embryo_z = paste0(meta$embryo, "_", meta$z)
 sce.seq = sce.seq[, colnames(sce.seq) %in% meta$uniqueID ]
 
 # load mappings
-mapping.embryo1z2 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo1z2.rds"))
-mapping.embryo1z5 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo1z5.rds"))
-mapping.embryo2z2 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo2z2.rds"))
-mapping.embryo2z5 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo2z5.rds"))
-mapping.embryo3z2 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo3z2.rds"))
-mapping.embryo3z5 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo3z5.rds"))
+mapping.embryo1z2 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo1z2_libsize.rds"))
+mapping.embryo1z5 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo1z5_libsize.rds"))
+mapping.embryo2z2 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo2z2_libsize.rds"))
+mapping.embryo2z5 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo2z5_libsize.rds"))
+mapping.embryo3z2 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo3z2_libsize.rds"))
+mapping.embryo3z5 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo3z5_libsize.rds"))
 mapping = cbind(mapping.embryo1z2, mapping.embryo1z5, mapping.embryo2z2, mapping.embryo2z5, mapping.embryo3z2, mapping.embryo3z5)
 mapping = mapping[, colnames(mapping) %in% meta$uniqueID ]
 
@@ -101,31 +98,19 @@ gene.score.allEmbryoZ = bplapply(unq.embryo_z, function(x){
     current.mapping = mapping[grepl(paste0( current.gene, "_"), rownames(mapping)), colnames(mapping) %in% meta$uniqueID[meta$embryo_z == x]]
     current.mapping.atlas = mapping.atlas[grepl(paste0( current.gene, "_"), rownames(mapping.atlas)),]
   
-    # closest cell
-    tab = table(current.mapping[1, ])
-    cells = names(tab) 
-    df = data.frame(atlas = current.atlas[cells], imputed = apply(current.mapping.atlas[, cells] , 2, function(x) mean(current.atlas[x]) ) ) 
-    score.logcounts.closestCell <- cov.wt(df, wt = as.numeric(tab), cor = TRUE)
-    df = data.frame(atlas = current.cosine.atlas[cells], imputed = apply(current.mapping.atlas[, cells] , 2, function(x) mean(current.cosine.atlas[x]) ) ) 
-    score.cosine.closestCell <- cov.wt(df, wt = as.numeric(tab), cor = TRUE)
-    
     # all
     tab = table(c(current.mapping))
     cells = names(tab) 
+    
     df = data.frame(atlas = current.atlas[cells], imputed = apply(current.mapping.atlas[, cells] , 2, function(x) mean(current.atlas[x]) ) ) 
-    score.logcounts.weighted <- cov.wt(df, wt = as.numeric(tab), cor = TRUE)
-    score.logcounts.unweighted <- cov.wt(df, cor = TRUE)
+    score.logcounts <- cov.wt(df, wt = as.numeric(tab), cor = TRUE)
+    
     df = data.frame(atlas = current.cosine.atlas[cells], imputed = apply(current.mapping.atlas[, cells] , 2, function(x) mean(current.cosine.atlas[x]) ) ) 
-    score.cosine.weighted <- cov.wt(df, wt = as.numeric(tab), cor = TRUE)
-    score.cosine.unweighted <- cov.wt(df, cor = TRUE)
+    score.cosine <- cov.wt(df, cor = TRUE)
       
     out = data.frame( gene = current.gene,  embryo_z = x, 
-                      score.logcounts.closestCell = as.numeric(score.logcounts.closestCell$cor[1,2]), 
-                      score.cosine.closestCell = as.numeric(score.cosine.closestCell$cor[1,2]), 
-                      score.logcounts.weighted = as.numeric(score.logcounts.weighted$cor[1,2]), 
-                      score.logcounts.unweighted = as.numeric(score.logcounts.unweighted$cor[1,2]), 
-                      score.cosine.weighted = as.numeric(score.cosine.weighted$cor[1,2]),
-                      score.cosine.unweighted = as.numeric(score.cosine.unweighted$cor[1,2])
+                      score.logcounts = as.numeric(score.logcounts$cor[1,2]), 
+                      score.cosine = as.numeric(score.cosine$cor[1,2])
                       )
     return(out)
   })
@@ -133,13 +118,10 @@ gene.score.allEmbryoZ = bplapply(unq.embryo_z, function(x){
   return(gene.score.oneEmbryoZ)
 }, BPPARAM = mcparam)
 gene.score.allEmbryoZ = do.call(rbind, gene.score.allEmbryoZ)
-saveRDS(gene.score.allEmbryoZ, file =  paste0( root.dir, "data/8_5/stitching/geneScore.rds"))
+saveRDS(gene.score.allEmbryoZ, file =  paste0( root.dir, "data/8_5/stitching/geneScore_performance.rds"))
 
 
 ```
-
-
-
 
 
 #Session Info

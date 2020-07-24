@@ -60,13 +60,12 @@ sce.seq = sce.seq[order(rownames(sce.seq)),]
 sce.atlas = sce.atlas[order(rownames(sce.atlas)),]
 
 # load mappings
-mapping.embryo1z2 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo1z2.rds"))
-mapping.embryo1z5 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo1z5.rds"))
-mapping.embryo2z2 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo2z2.rds"))
-mapping.embryo2z5 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo2z5.rds"))
-mapping.embryo3z2 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo3z2.rds"))
-mapping.embryo3z5 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo3z5.rds"))
-
+mapping.embryo1z2 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo1z2_libsize.rds"))
+mapping.embryo1z5 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo1z5_libsize.rds"))
+mapping.embryo2z2 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo2z2_libsize.rds"))
+mapping.embryo2z5 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo2z5_libsize.rds"))
+mapping.embryo3z2 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo3z2_libsize.rds"))
+mapping.embryo3z5 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo3z5_libsize.rds"))
 mapping = cbind(mapping.embryo1z2, mapping.embryo1z5, mapping.embryo2z2, mapping.embryo2z5, mapping.embryo3z2, mapping.embryo3z5)
 sce.seq = sce.seq[, colnames(sce.seq) %in% colnames(mapping) ]
 
@@ -78,7 +77,6 @@ meta = merge(meta, meta.CT, all.x = T, all.y = F)
 # order
 mapping = mapping[, order(colnames(mapping))]
 sce.seq = sce.seq[,order(colnames(sce.seq))]
-counts.cosine.seq = as.matrix( cosineNorm(assay(sce.seq, "logcounts_area")) )
 counts.atlas = assay(sce.atlas, "logcounts")
 counts.cosine.atlas = as.matrix( cosineNorm(counts.atlas) )
 genes = rownames(sce.seq)
@@ -186,8 +184,6 @@ colnames(fracExpressed.cosine.imputed) = colnames(mapping)
 rownames(fracExpressed.cosine.imputed) = genes
 
 
-
-
 performance.seq = list(mean.imputed = mean.imputed,
                        se.imputed = se.imputed,
                        fracExpressed.imputed = fracExpressed.imputed,
@@ -216,65 +212,6 @@ saveRDS(stat.mappingEntropy, file =  paste0( root.dir, "data/8_5/stitching/mappi
 
 ```
 
-# How often seq cells are coherent with their neighbors
-
-
-```{r spatial-coherency, message=FALSE, warning=FALSE}
-# 
-n.neigh = 2
-spatial.coherency = bplapply(colnames(mapping), function(current.cell){
-  current.CT = meta$iterMNN_stable[meta$uniqueID == current.cell]
-  current.adjacency.list = adjacency.list[names(adjacency.list) == current.cell]
-  if (!is_empty(current.adjacency.list)){
-    if (n.neigh == 1){
-      neighbor.cells = as_ids(current.adjacency.list[[1]])
-    } else if (n.neigh == 2){
-      neighbor.cells = as_ids(current.adjacency.list[[1]])
-      second.neighbor.cells = sapply(neighbor.cells, function(x){
-        current.second.adjacency.list = adjacency.list[names(adjacency.list) == x]
-        return(as_ids(current.second.adjacency.list[[1]]))
-      })
-      neighbor.cells = unique(c(neighbor.cells, unlist(second.neighbor.cells)))
-    }
-    neighbor.CT = sapply(neighbor.cells, function(x) meta$iterMNN_stable[meta$uniqueID == x])
-    cells.sameCT = c( names(neighbor.CT)[neighbor.CT == current.CT])
-    cells.sameCT = setdiff(cells.sameCT, current.cell)
-    if (length(cells.sameCT) > 1){
-      current.counts.neighbors = counts.cosine.seq[,cells.sameCT] > 0
-      current.counts = counts.cosine.seq[, current.cell] > 0
-      current.spatial.consistency = sapply(genes, function(current.gene){
-        return(mean(current.counts[current.gene] == current.counts.neighbors[current.gene,]))
-      })
-        #current.n.neighbors = length(cells.sameCT)
-    }
-    else if (length(cells.sameCT) == 1){
-      current.counts.neighbors = counts.cosine.seq[,cells.sameCT] > 0
-      current.counts = counts.cosine.seq[, current.cell] > 0
-      current.spatial.consistency = sapply(genes, function(current.gene){
-        return(mean(current.counts[current.gene] == current.counts.neighbors[current.gene]))
-      })
-        #current.n.neighbors = length(cells.sameCT)
-    }
-    else {
-      current.spatial.consistency = rep(c(NA), times = length(genes))
-      names(current.spatial.consistency) = genes
-        #current.n.neighbors = 0
-    }
-  }
-  else {
-    current.spatial.consistency = rep(c(NA), times = length(genes))
-    names(current.spatial.consistency) = genes
-    #current.n.neighbors = 0
-  }
-  return(current.spatial.consistency)
-}, BPPARAM = mcparam)
-
-spatial.coherency = do.call(cbind, spatial.coherency)
-colnames(spatial.coherency) = colnames(mapping)
-saveRDS(spatial.coherency, file =  paste0( root.dir, "data/8_5/stitching/seq_spatialCoherency_seq2atlas.rds"))
-
-
-```
 
 
 #Session Info
