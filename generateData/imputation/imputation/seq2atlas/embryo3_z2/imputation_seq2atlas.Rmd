@@ -45,9 +45,11 @@ source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
 sce.atlas = readRDS(paste0(root.dir, "data/reducedAtlas/E8_25__E8_5.rds"))
 sce.atlas = sce.atlas[, sce.atlas$stage == "E8.5"]
 counts.atlas = logcounts(sce.atlas)
+counts.atlas = assay(sce.atlas, "logcounts")
+counts.cosine.atlas = as.matrix( cosineNorm( assay(sce.atlas, "logcounts")))
 
 # load mapping
-mapping = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo3z2.rds"))
+mapping = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo3z2_libsize.rds"))
 
 ```
 
@@ -55,8 +57,13 @@ mapping = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo
 
 ```{r impute-seq, message=FALSE}
 
-getCounts = function(cells, weights){ 
+getLogcounts = function(cells, weights){ 
   current.counts = counts.atlas[,match(cells, colnames(counts.atlas))] 
+  current.counts = ( current.counts %*% weights )/sum(weights)
+  return(current.counts) 
+} 
+getCosine = function(cells, weights){ 
+  current.counts = counts.cosine.atlas[,match(cells, colnames(counts.cosine.atlas))] 
   current.counts = ( current.counts %*% weights )/sum(weights)
   return(current.counts) 
 } 
@@ -64,12 +71,24 @@ getCounts = function(cells, weights){
 logcounts.imputation.seq = bplapply(1:ncol(mapping), function(x){
   current.cell = mapping[,x]
   current.cell.stat = table(current.cell)
-  current.counts = getCounts(names(current.cell.stat), as.numeric( current.cell.stat )) 
+  current.counts = getLogcounts(names(current.cell.stat), as.numeric( current.cell.stat )) 
   return(current.counts)
 }, BPPARAM = mcparam)
 logcounts.imputation.seq = do.call(cbind, logcounts.imputation.seq)
 colnames(logcounts.imputation.seq) = colnames(mapping)
-saveRDS(logcounts.imputation.seq, file =  paste0( root.dir, "data/8_5/stitching/imputation_seq2atlas_embryo3z2.rds"))
+saveRDS(logcounts.imputation.seq, file =  paste0( root.dir, "data/8_5/stitching/imputation/imputation_seq2atlas_logcounts_embryo3z2.rds"))
+
+
+cosine.imputation.seq = bplapply(1:ncol(mapping), function(x){
+  current.cell = mapping[,x]
+  current.cell.stat = table(current.cell)
+  current.counts = getCosine(names(current.cell.stat), as.numeric( current.cell.stat )) 
+  return(current.counts)
+}, BPPARAM = mcparam)
+cosine.imputation.seq = do.call(cbind, cosine.imputation.seq)
+colnames(cosine.imputation.seq) = colnames(mapping)
+saveRDS(cosine.imputation.seq, file =  paste0( root.dir, "data/8_5/stitching/imputation/imputation_seq2atlas_cosine_embryo3z2.rds"))
+
 
 ```
 
