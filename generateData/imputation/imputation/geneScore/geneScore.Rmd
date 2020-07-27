@@ -52,7 +52,7 @@ sce.seq = sce[!rownames(sce) == "Xist", ]
 
 # load atlas 
 sce.atlas = readRDS(paste0(root.dir, "data/reducedAtlas/E8_25__E8_5.rds"))
-sce.atlas = sce.atlas[rownames(sce.seq) , sce.atlas$stage == "E8.5"]
+sce.atlas = sce.atlas[, sce.atlas$stage == "E8.5"]
 
 meta = data.frame( colData(sce.seq) )
 meta.CT = readRDS(paste0(root.dir, "data/8_5/source/iterMNN_mapping_dt.Rds"))
@@ -117,6 +117,8 @@ gene.score.allEmbryoZ = lapply(unq.embryo_z, function(x){
 })
 gene.score.allEmbryoZ = do.call(rbind, gene.score.allEmbryoZ)
 saveRDS(gene.score.allEmbryoZ, file =  paste0( root.dir, "data/8_5/stitching/geneScore_imputation.rds"))
+
+
 
 
 ```
