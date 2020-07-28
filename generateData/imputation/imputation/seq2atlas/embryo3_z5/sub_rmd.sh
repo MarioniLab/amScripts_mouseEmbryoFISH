@@ -12,7 +12,7 @@ script_name=imp_seq_3_5
 memory=100000
 r_command="rusage[mem=${memory}]"
 #num_processors
-nproc=5
+nproc=3
 
 smg=/nfs/research1/marioni/alsu/singularity/R1.simg
 script=/nfs/research1/marioni/alsu/spatial/mouse_embryo/amScripts_mouseEmbryoFISH/generateData/imputation/imputation/seq2atlas/embryo3_z5/run_rmd.R

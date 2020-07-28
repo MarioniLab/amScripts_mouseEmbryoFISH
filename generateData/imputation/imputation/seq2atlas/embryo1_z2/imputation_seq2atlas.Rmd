@@ -23,7 +23,7 @@ library(Matrix)
 library(scran)
 library(BiocParallel)
 library(BiocNeighbors)
-ncores = 5
+ncores = 3
 mcparam = MulticoreParam(workers = ncores)
 register(mcparam)
 library(igraph)
@@ -62,6 +62,7 @@ getLogcounts = function(cells, weights){
   current.counts = ( current.counts %*% weights )/sum(weights)
   return(current.counts) 
 } 
+
 getCosine = function(cells, weights){ 
   current.counts = counts.cosine.atlas[,match(cells, colnames(counts.cosine.atlas))] 
   current.counts = ( current.counts %*% weights )/sum(weights)
