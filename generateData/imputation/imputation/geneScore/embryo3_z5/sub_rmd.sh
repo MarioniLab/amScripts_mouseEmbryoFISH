@@ -9,10 +9,10 @@ script_name=score_imp_3_5
 
 #CHOOSE PARAMETERS
 #RAM in megabytes
-memory=90000
+memory=95000
 r_command="rusage[mem=${memory}]"
 #num_processors
-nproc=7
+nproc=3
 
 smg=/nfs/research1/marioni/alsu/singularity/R1.simg
 script=/nfs/research1/marioni/alsu/spatial/mouse_embryo/amScripts_mouseEmbryoFISH/generateData/imputation/imputation/geneScore/embryo3_z5/run_rmd.R
