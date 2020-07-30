@@ -81,7 +81,6 @@ interaction.stat = bplapply(meta$uniqueID, function(current.cell){
       return(current.stat)
     })
     interaction.stat.oneCell = do.call(rbind, interaction.stat.oneCell)
-    return(interaction.stat.oneCell)
   }
   else {
     interaction.stat.oneCell = data.frame(cell_1 = current.cell, cell_2 = NA, 
@@ -90,8 +89,8 @@ interaction.stat = bplapply(meta$uniqueID, function(current.cell){
                       y_global_affine = meta$y_global_affine[meta$uniqueID == current.cell],
                       embryo_z = meta$embryo_z[meta$uniqueID == current.cell]
                       )
-    return(interaction.stat.oneCell)
   }
+  return(interaction.stat.oneCell)
 })
 interaction.stat = do.call(rbind, interaction.stat)
 saveRDS(interaction.stat, file = paste0( root.dir, "data/8_5/interaction_stat.rds"))  
