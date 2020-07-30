@@ -14,7 +14,7 @@ r_command="rusage[mem=${memory}]"
 #num_processors
 nproc=1
 
-smg=/nfs/research0/marioni/alsu/singularity/R1.simg
+smg=/nfs/research1/marioni/alsu/singularity/R1.simg
 script=/nfs/research1/marioni/alsu/spatial/mouse_embryo/amScripts_mouseEmbryoFISH/generateData/imputation/imputation/seq2atlas/embryo1_z2/run_rmd.R
 
 bsub -q research-rh74 -e ${err_folder}/${script_name} \
