@@ -47,7 +47,7 @@ source(paste0(root.dir, "amScripts_mouseEmbryoFISH/visualization_functions.R"))
 
 # load seq
 load_embryo_8.5(dir = "cluster")
-load_embryo_8.5(dir = "local")
+#load_embryo_8.5(dir = "local")
 sce.seq = sce[!rownames(sce) == "Xist", ]
 meta = data.frame(colData(sce.seq))
 # add CT
