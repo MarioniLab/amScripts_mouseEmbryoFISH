@@ -7,6 +7,7 @@ err_folder=${my_folder}/clust_err/spatial
 #If you change this, you MUST update the wrapper's grep
 script_name=imp_seq_1_5
 
+#
 #CHOOSE PARAMETERS
 #RAM in megabytes
 memory=100000
