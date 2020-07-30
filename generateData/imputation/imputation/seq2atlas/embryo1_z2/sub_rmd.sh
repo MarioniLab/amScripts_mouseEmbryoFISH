@@ -9,15 +9,15 @@ script_name=imp_seq_1_2
 
 #CHOOSE PARAMETERS
 #RAM in megabytes
-memory=130000
+emory=200000
 r_command="rusage[mem=${memory}]"
 #num_processors
-nproc=2
+nproc=1
 
-smg=/nfs/research1/marioni/alsu/singularity/R1.simg
+smg=/nfs/research0/marioni/alsu/singularity/R1.simg
 script=/nfs/research1/marioni/alsu/spatial/mouse_embryo/amScripts_mouseEmbryoFISH/generateData/imputation/imputation/seq2atlas/embryo1_z2/run_rmd.R
 
 bsub -q research-rh74 -e ${err_folder}/${script_name} \
 -o ${out_folder}/${script_name} \
--M $memory -R $r_command -n $nproc -J ${script_name} \
+-M $memory -R $r_command -n $nproc -P bigmem -J ${script_name} \
 "singularity exec $smg Rscript $script"

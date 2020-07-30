@@ -5,7 +5,7 @@ err_folder=${my_folder}/clust_err/spatial
 
 #SELECT SCRIPT
 #If you change this, you MUST update the wrapper's grep
-script_name=imp_seq_3_5
+script_name=imp_seq_1_2
 
 #CHOOSE PARAMETERS
 #RAM in megabytes
@@ -15,7 +15,7 @@ r_command="rusage[mem=${memory}]"
 nproc=1
 
 smg=/nfs/research1/marioni/alsu/singularity/R1.simg
-script=/nfs/research1/marioni/alsu/spatial/mouse_embryo/amScripts_mouseEmbryoFISH/generateData/imputation/imputation/seq2atlas/embryo3_z5/run_rmd.R
+script=/nfs/research1/marioni/alsu/spatial/mouse_embryo/amScripts_mouseEmbryoFISH/generateData/imputation/imputation/seq2atlas/embryo1_z2/run_rmd.R
 
 bsub -q research-rh74 -e ${err_folder}/${script_name} \
 -o ${out_folder}/${script_name} \
