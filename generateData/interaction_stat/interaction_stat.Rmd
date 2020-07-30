@@ -91,7 +91,7 @@ interaction.stat = bplapply(meta$uniqueID, function(current.cell){
                       )
   }
   return(interaction.stat.oneCell)
-})
+}, BPPARAM = mcparam)
 interaction.stat = do.call(rbind, interaction.stat)
 saveRDS(interaction.stat, file = paste0( root.dir, "data/8_5/interaction_stat.rds"))  
 
