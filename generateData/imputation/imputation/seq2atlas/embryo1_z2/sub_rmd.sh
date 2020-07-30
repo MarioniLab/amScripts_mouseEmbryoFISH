@@ -9,7 +9,7 @@ script_name=imp_seq_1_2
 
 #CHOOSE PARAMETERS
 #RAM in megabytes
-emory=200000
+memory=200000
 r_command="rusage[mem=${memory}]"
 #num_processors
 nproc=1
