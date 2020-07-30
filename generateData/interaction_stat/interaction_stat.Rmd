@@ -47,6 +47,7 @@ source(paste0(root.dir, "amScripts_mouseEmbryoFISH/visualization_functions.R"))
 
 # load seq
 load_embryo_8.5(dir = "cluster")
+load_embryo_8.5(dir = "local")
 sce.seq = sce[!rownames(sce) == "Xist", ]
 meta = data.frame(colData(sce.seq))
 # add CT
@@ -71,16 +72,27 @@ interaction.stat = bplapply(meta$uniqueID, function(current.cell){
   current.adjacency.list = adjacency.list[names(adjacency.list) == current.cell]
   if (!is_empty(current.adjacency.list)){
     neighbor.cells = as_ids(current.adjacency.list[[1]])
-    interaction.stat.oneCell = lapply(neighbor.cells, function(adjacent.cell){
-      current.stat = data.frame(cell_1 = current.cell, cell_2 = adjacent.cell, 
+    neighbor.cells = intersect(neighbor.cells, meta$uniqueID)
+    if (length(neighbor.cells) > 0){
+      interaction.stat.oneCell = lapply(neighbor.cells, function(adjacent.cell){
+        current.stat = data.frame(cell_1 = current.cell, cell_2 = adjacent.cell, 
                       CT_1 = meta$iterMNN_stable[meta$uniqueID == current.cell], CT_2 = meta$iterMNN_stable[meta$uniqueID == adjacent.cell], 
                       x_global_affine = (meta$x_global_affine[meta$uniqueID == current.cell] + meta$x_global_affine[meta$uniqueID == adjacent.cell])/2, 
                       y_global_affine = (meta$y_global_affine[meta$uniqueID == current.cell] + meta$y_global_affine[meta$uniqueID == adjacent.cell])/2,
                       embryo_z = meta$embryo_z[meta$uniqueID == current.cell]
                       )
-      return(current.stat)
-    })
-    interaction.stat.oneCell = do.call(rbind, interaction.stat.oneCell)
+        return(current.stat)
+      })
+      interaction.stat.oneCell = do.call(rbind, interaction.stat.oneCell)
+    }
+    else {
+      interaction.stat.oneCell = data.frame(cell_1 = current.cell, cell_2 = NA, 
+                      CT_1 = meta$iterMNN_stable[meta$uniqueID == current.cell], CT_2 = NA, 
+                      x_global_affine = meta$x_global_affine[meta$uniqueID == current.cell], 
+                      y_global_affine = meta$y_global_affine[meta$uniqueID == current.cell],
+                      embryo_z = meta$embryo_z[meta$uniqueID == current.cell]
+                      )
+    }
   }
   else {
     interaction.stat.oneCell = data.frame(cell_1 = current.cell, cell_2 = NA, 
@@ -93,6 +105,7 @@ interaction.stat = bplapply(meta$uniqueID, function(current.cell){
   return(interaction.stat.oneCell)
 }, BPPARAM = mcparam)
 interaction.stat = do.call(rbind, interaction.stat)
+interaction.stat = interaction.stat[!is.na(interaction.stat$cell_2), ]
 saveRDS(interaction.stat, file = paste0( root.dir, "data/8_5/interaction_stat.rds"))  
 
 
