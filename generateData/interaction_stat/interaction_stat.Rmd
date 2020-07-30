@@ -46,13 +46,13 @@ ncores = 4
 mcparam = MulticoreParam(workers = ncores)
 register(mcparam)
 
-root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
+root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
 figures.dir = paste0(root.dir, "figures/imputation/imputation/heart/")
 source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
 source(paste0(root.dir, "amScripts_mouseEmbryoFISH/visualization_functions.R"))
 
 # load seq
-load_embryo_8.5(dir = "local")
+load_embryo_8.5(dir = "cluster")
 sce.seq = sce[!rownames(sce) == "Xist", ]
 meta = data.frame(colData(sce.seq))
 # add CT
