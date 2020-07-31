@@ -53,20 +53,20 @@ idx = meta$embryo == "embryo1" & meta$z == 5
 sce.seq = sce.seq[,colnames(sce.seq) %in% meta$uniqueID[idx]]
 meta = meta[idx,]
 assay(sce.seq, "cosineNorm_area") <- cosineNorm(assay(sce.seq, "logcounts_area"))
-#assay(sce.seq, "cpm") <- logcounts(scater::logNormCounts(sce.seq, size_factors = sce.seq$total))
 assay(sce.seq, "cosineNorm_cpm") <- cosineNorm(assay(sce.seq, "cpm_wo_xist"))
 
 # load atlas 
 sce.atlas = readRDS(paste0(root.dir, "data/reducedAtlas/E8_25__E8_5.rds"))
 sce.atlas = sce.atlas[rownames(sce.seq), sce.atlas$stage == "E8.5"]
+assay(sce.atlas, "cosineNorm_seqGenes") <- cosineNorm(assay(sce.atlas, "logcounts"))
 
 # order seq and atlas (in case, cant hurt, had troubles b4)
 sce.seq = sce.seq[order(rownames(sce.seq)),]
 sce.atlas = sce.atlas[order(rownames(sce.atlas)),]
 
 # join
-sce.joint.area = cbind(assay(sce.seq, "cosineNorm_area"), assay(sce.atlas, "cosineNorm"))
-sce.joint.libsize = cbind(assay(sce.seq, "cosineNorm_cpm"), assay(sce.atlas, "cosineNorm"))
+sce.joint.area = cbind(assay(sce.seq, "cosineNorm_area"), assay(sce.atlas, "cosineNorm_seqGenes"))
+sce.joint.libsize = cbind(assay(sce.seq, "cosineNorm_cpm"), assay(sce.atlas, "cosineNorm_seqGenes"))
 batchFactor = factor(c(as.character(sce.seq$embryo_pos_z), as.character(sce.atlas$sample)))
 
 ```
