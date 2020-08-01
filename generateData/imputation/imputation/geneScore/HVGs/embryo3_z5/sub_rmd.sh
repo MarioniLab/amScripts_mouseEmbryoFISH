@@ -5,19 +5,19 @@ err_folder=${my_folder}/clust_err/spatial
 
 #SELECT SCRIPT
 #If you change this, you MUST update the wrapper's grep
-script_name=score_imp_2_5
+script_name=score_imp_3_5_hv
 
 #CHOOSE PARAMETERS
 #RAM in megabytes
-memory=95000
+memory=200000
 r_command="rusage[mem=${memory}]"
 #num_processors
-nproc=3
+nproc=1
 
 smg=/nfs/research1/marioni/alsu/singularity/R1.simg
-script=/nfs/research1/marioni/alsu/spatial/mouse_embryo/amScripts_mouseEmbryoFISH/generateData/imputation/imputation/geneScore/embryo2_z5/run_rmd.R
+script=/nfs/research1/marioni/alsu/spatial/mouse_embryo/amScripts_mouseEmbryoFISH/generateData/imputation/imputation/geneScore/HVGs/embryo3_z5/run_rmd.R
 
 bsub -q research-rh74 -e ${err_folder}/${script_name} \
 -o ${out_folder}/${script_name} \
--M $memory -R $r_command -n $nproc -J ${script_name} \
+-M $memory -R $r_command -n $nproc -P bigmem -J ${script_name} \
 "singularity exec $smg Rscript $script"

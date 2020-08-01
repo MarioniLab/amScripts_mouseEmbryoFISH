@@ -26,7 +26,7 @@ library(Matrix)
 library(scran)
 library(BiocParallel)
 library(BiocNeighbors)
-ncores = 3
+ncores = 1
 mcparam = MulticoreParam(workers = ncores)
 register(mcparam)
 library(igraph)
@@ -50,9 +50,11 @@ load_embryo_8.5(dir = "cluster")
 #load_embryo_8.5(dir = "local")
 sce.seq = sce[!rownames(sce) == "Xist", ]
 
+HVGs = read.table(paste0(root.dir, "data/8_5/HVGs_atlas.tab"), stringsAsFactors = F)
+HVGs = HVGs$V1
 # load atlas 
 sce.atlas = readRDS(paste0(root.dir, "data/reducedAtlas/E8_25__E8_5.rds"))
-sce.atlas = sce.atlas[, sce.atlas$stage == "E8.5"]
+sce.atlas = sce.atlas[rownames(sce.atlas) %in% HVGs, sce.atlas$stage == "E8.5"]
 
 meta = data.frame( colData(sce.seq) )
 meta.CT = readRDS(paste0(root.dir, "data/8_5/source/iterMNN_mapping_dt.Rds"))
@@ -72,7 +74,6 @@ mapping.atlas = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_atlas2atla
 mapping = mapping[, order(colnames(mapping))]
 sce.seq = sce.seq[,order(colnames(sce.seq))]
 counts.atlas = assay(sce.atlas, "logcounts")
-#counts.cosine.atlas = as.matrix( cosineNorm( assay(sce.atlas, "logcounts")))
 
 genes = rownames(sce.atlas)
 
@@ -89,14 +90,10 @@ cells = names(tab)
 current.mapping.atlas = mapping.atlas[, cells]
   
 gene.score = bplapply(genes, function(current.gene){
-  #current.cosine.atlas = counts.cosine.atlas[rownames(counts.cosine.atlas) == current.gene,]
   current.atlas = counts.atlas[rownames(counts.atlas) == current.gene,]
     
   df = data.frame(atlas = current.atlas[cells], imputed = apply(current.mapping.atlas, 2, function(x) mean(current.atlas[x]) ) ) 
   score.logcounts <- cov.wt(df, wt = as.numeric(tab), cor = TRUE)
-  
-  #df = data.frame(atlas = current.cosine.atlas[cells], imputed = apply(current.mapping.atlas , 2, function(x) mean(current.cosine.atlas[x]) ) )
-  #score.cosine <- cov.wt(df, wt = as.numeric(tab), cor = TRUE)
       
   out = data.frame( gene = current.gene, 
                       score.logcounts = as.numeric(score.logcounts$cor[1,2])
@@ -104,7 +101,7 @@ gene.score = bplapply(genes, function(current.gene){
   return(out)
 }, BPPARAM = mcparam)
 gene.score = do.call(rbind, gene.score)
-saveRDS(gene.score, file =  paste0( root.dir, "data/8_5/stitching/geneScore_imputation_embryo2z2.rds"))
+saveRDS(gene.score, file =  paste0( root.dir, "data/8_5/stitching/geneScore_imputation_HVGs_embryo2z2.rds"))
 
 
 ```
