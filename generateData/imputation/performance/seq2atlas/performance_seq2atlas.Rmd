@@ -48,7 +48,6 @@ source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
 
 # load seq embryos
 load_embryo_8.5(dir = "cluster")
-#load_embryo_8.5(dir = "local")
 sce.seq = sce[!rownames(sce) == "Xist", ]
 
 # load atlas 
@@ -80,10 +79,6 @@ sce.seq = sce.seq[,order(colnames(sce.seq))]
 counts.atlas = assay(sce.atlas, "logcounts")
 counts.cosine.atlas = as.matrix( cosineNorm(counts.atlas) )
 genes = rownames(sce.seq)
-
-# neigh.net
-neigh.net = readRDS(paste0(root.dir, "data/8_5/source/E8.5_neighbourGraph_1.3.Rds"))
-adjacency.list = adjacent_vertices(neigh.net, V(neigh.net), mode = "all")
 
 # se function with removing NAs
 stderr <- function(x, na.rm=FALSE) {
