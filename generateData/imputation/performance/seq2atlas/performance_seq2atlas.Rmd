@@ -95,114 +95,118 @@ stderr <- function(x, na.rm=FALSE) {
 ```{r get-imputation, message=FALSE, warning=FALSE}
 
 
+# 
+# 
+# mean.imputed = bplapply(genes, function(current.gene){
+#   current.atlas = counts.atlas[rownames(counts.atlas) == current.gene,]
+#   current.mapping = mapping[grepl(paste0( current.gene, "_"), rownames(mapping)),]
+#   # mean
+#   current.mean.imputed = sapply(1:ncol(current.mapping), function(x){
+#     return( mean( current.atlas[current.mapping[,x]]) )
+#   })
+#   return(current.mean.imputed)
+# }, BPPARAM = mcparam)
+# mean.imputed = do.call(rbind, mean.imputed)
+# colnames(mean.imputed) = colnames(mapping)
+# rownames(mean.imputed) = genes
+# 
+# se.imputed = bplapply(genes, function(current.gene){
+#   current.atlas = counts.atlas[rownames(counts.atlas) == current.gene,]
+#   current.mapping = mapping[grepl(paste0( current.gene, "_"), rownames(mapping)),]
+#   # mean
+#   current.se.imputed = sapply(1:ncol(current.mapping), function(x){
+#     return( stderr( current.atlas[current.mapping[,x]]) )
+#   })
+#   return(current.se.imputed)
+# }, BPPARAM = mcparam)
+# se.imputed = do.call(rbind, se.imputed)
+# colnames(se.imputed) = colnames(mapping)
+# rownames(se.imputed) = genes
+# 
+# fracExpressed.imputed = bplapply(genes, function(current.gene){
+#   current.atlas = counts.atlas[rownames(counts.atlas) == current.gene,]
+#   current.mapping = mapping[grepl(paste0( current.gene, "_"), rownames(mapping)),]
+#   # mean
+#   current.fracExpressed.imputed = sapply(1:ncol(current.mapping), function(x){
+#     return( mean( current.atlas[current.mapping[,x]] > 0))
+#   })
+#   return(current.fracExpressed.imputed)
+# }, BPPARAM = mcparam)
+# fracExpressed.imputed = do.call(rbind, fracExpressed.imputed)
+# colnames(fracExpressed.imputed) = colnames(mapping)
+# rownames(fracExpressed.imputed) = genes
+# 
+# 
+# 
+# 
+# mean.cosine.imputed = bplapply(genes, function(current.gene){
+#   current.atlas = counts.cosine.atlas[rownames(counts.cosine.atlas) == current.gene,]
+#   current.mapping = mapping[grepl(paste0( current.gene, "_"), rownames(mapping)),]
+#   # mean
+#   current.mean.imputed = sapply(1:ncol(current.mapping), function(x){
+#     return( mean( current.atlas[current.mapping[,x]]) )
+#   })
+#   return(current.mean.imputed)
+# }, BPPARAM = mcparam)
+# mean.cosine.imputed = do.call(rbind, mean.cosine.imputed)
+# colnames(mean.cosine.imputed) = colnames(mapping)
+# rownames(mean.cosine.imputed) = genes
+# 
+# se.cosine.imputed = bplapply(genes, function(current.gene){
+#   current.atlas = counts.cosine.atlas[rownames(counts.cosine.atlas) == current.gene,]
+#   current.mapping = mapping[grepl(paste0( current.gene, "_"), rownames(mapping)),]
+#   # mean
+#   current.se.imputed = sapply(1:ncol(current.mapping), function(x){
+#     return( stderr( current.atlas[current.mapping[,x]]) )
+#   })
+#   return(current.se.imputed)
+# }, BPPARAM = mcparam)
+# se.cosine.imputed = do.call(rbind, se.cosine.imputed)
+# colnames(se.cosine.imputed) = colnames(mapping)
+# rownames(se.cosine.imputed) = genes
+# 
+# fracExpressed.cosine.imputed = bplapply(genes, function(current.gene){
+#   current.atlas = counts.cosine.atlas[rownames(counts.cosine.atlas) == current.gene,]
+#   current.mapping = mapping[grepl(paste0( current.gene, "_"), rownames(mapping)),]
+#   # mean
+#   current.fracExpressed.imputed = sapply(1:ncol(current.mapping), function(x){
+#     return( mean( current.atlas[current.mapping[,x]] > 0))
+#   })
+#   return(current.fracExpressed.imputed)
+# }, BPPARAM = mcparam)
+# fracExpressed.cosine.imputed = do.call(rbind, fracExpressed.cosine.imputed)
+# colnames(fracExpressed.cosine.imputed) = colnames(mapping)
+# rownames(fracExpressed.cosine.imputed) = genes
+# 
+# 
+# performance.seq = list(mean.imputed = mean.imputed,
+#                        se.imputed = se.imputed,
+#                        fracExpressed.imputed = fracExpressed.imputed,
+#                        mean.cosine.imputed = mean.cosine.imputed,
+#                        se.cosine.imputed = se.cosine.imputed,
+#                        fracExpressed.cosine.imputed = fracExpressed.cosine.imputed
+#                        )
+# saveRDS(performance.seq, file =  paste0( root.dir, "data/8_5/stitching/performance_seq2atlas.rds"))
+# 
+# 
+# ```
+# 
+# # Mapping entropy
+# 
+# ```{r map-entropy, message=FALSE, warning=FALSE}
+# 
+# stat.mappingEntropy = lapply(1:ncol( mapping ), function(x){
+#   cells.stat = table( mapping[,x] )
+#   out = data.frame(uniqueID = colnames(mapping)[x],
+#                    mapping.entropy.n_cells = length(cells.stat), 
+#                    mapping.entropy.median_occurence = median(cells.stat, na.rm = T))
+#   return(out)
+# })
+# stat.mappingEntropy = do.call(rbind, stat.mappingEntropy)
+# saveRDS(stat.mappingEntropy, file =  paste0( root.dir, "data/8_5/stitching/mappingEntropy_seq2atlas.rds"))
+# 
 
 
-mean.imputed = bplapply(genes, function(current.gene){
-  current.atlas = counts.atlas[rownames(counts.atlas) == current.gene,]
-  current.mapping = mapping[grepl(paste0( current.gene, "_"), rownames(mapping)),]
-  # mean
-  current.mean.imputed = sapply(1:ncol(current.mapping), function(x){
-    return( mean( current.atlas[current.mapping[,x]]) )
-  })
-  return(current.mean.imputed)
-}, BPPARAM = mcparam)
-mean.imputed = do.call(rbind, mean.imputed)
-colnames(mean.imputed) = colnames(mapping)
-rownames(mean.imputed) = genes
-
-se.imputed = bplapply(genes, function(current.gene){
-  current.atlas = counts.atlas[rownames(counts.atlas) == current.gene,]
-  current.mapping = mapping[grepl(paste0( current.gene, "_"), rownames(mapping)),]
-  # mean
-  current.se.imputed = sapply(1:ncol(current.mapping), function(x){
-    return( stderr( current.atlas[current.mapping[,x]]) )
-  })
-  return(current.se.imputed)
-}, BPPARAM = mcparam)
-se.imputed = do.call(rbind, se.imputed)
-colnames(se.imputed) = colnames(mapping)
-rownames(se.imputed) = genes
-
-fracExpressed.imputed = bplapply(genes, function(current.gene){
-  current.atlas = counts.atlas[rownames(counts.atlas) == current.gene,]
-  current.mapping = mapping[grepl(paste0( current.gene, "_"), rownames(mapping)),]
-  # mean
-  current.fracExpressed.imputed = sapply(1:ncol(current.mapping), function(x){
-    return( mean( current.atlas[current.mapping[,x]] > 0))
-  })
-  return(current.fracExpressed.imputed)
-}, BPPARAM = mcparam)
-fracExpressed.imputed = do.call(rbind, fracExpressed.imputed)
-colnames(fracExpressed.imputed) = colnames(mapping)
-rownames(fracExpressed.imputed) = genes
-
-
-
-
-mean.cosine.imputed = bplapply(genes, function(current.gene){
-  current.atlas = counts.cosine.atlas[rownames(counts.cosine.atlas) == current.gene,]
-  current.mapping = mapping[grepl(paste0( current.gene, "_"), rownames(mapping)),]
-  # mean
-  current.mean.imputed = sapply(1:ncol(current.mapping), function(x){
-    return( mean( current.atlas[current.mapping[,x]]) )
-  })
-  return(current.mean.imputed)
-}, BPPARAM = mcparam)
-mean.cosine.imputed = do.call(rbind, mean.cosine.imputed)
-colnames(mean.cosine.imputed) = colnames(mapping)
-rownames(mean.cosine.imputed) = genes
-
-se.cosine.imputed = bplapply(genes, function(current.gene){
-  current.atlas = counts.cosine.atlas[rownames(counts.cosine.atlas) == current.gene,]
-  current.mapping = mapping[grepl(paste0( current.gene, "_"), rownames(mapping)),]
-  # mean
-  current.se.imputed = sapply(1:ncol(current.mapping), function(x){
-    return( stderr( current.atlas[current.mapping[,x]]) )
-  })
-  return(current.se.imputed)
-}, BPPARAM = mcparam)
-se.cosine.imputed = do.call(rbind, se.cosine.imputed)
-colnames(se.cosine.imputed) = colnames(mapping)
-rownames(se.cosine.imputed) = genes
-
-fracExpressed.cosine.imputed = bplapply(genes, function(current.gene){
-  current.atlas = counts.cosine.atlas[rownames(counts.cosine.atlas) == current.gene,]
-  current.mapping = mapping[grepl(paste0( current.gene, "_"), rownames(mapping)),]
-  # mean
-  current.fracExpressed.imputed = sapply(1:ncol(current.mapping), function(x){
-    return( mean( current.atlas[current.mapping[,x]] > 0))
-  })
-  return(current.fracExpressed.imputed)
-}, BPPARAM = mcparam)
-fracExpressed.cosine.imputed = do.call(rbind, fracExpressed.cosine.imputed)
-colnames(fracExpressed.cosine.imputed) = colnames(mapping)
-rownames(fracExpressed.cosine.imputed) = genes
-
-
-performance.seq = list(mean.imputed = mean.imputed,
-                       se.imputed = se.imputed,
-                       fracExpressed.imputed = fracExpressed.imputed,
-                       mean.cosine.imputed = mean.cosine.imputed,
-                       se.cosine.imputed = se.cosine.imputed,
-                       fracExpressed.cosine.imputed = fracExpressed.cosine.imputed
-                       )
-saveRDS(performance.seq, file =  paste0( root.dir, "data/8_5/stitching/performance_seq2atlas.rds"))
-
-
-```
-
-# Mapping entropy
-
-```{r map-entropy, message=FALSE, warning=FALSE}
-
-stat.mappingEntropy = lapply(1:ncol( mapping ), function(x){
-  cells.stat = table( mapping[,x] )
-  out = data.frame(uniqueID = colnames(mapping)[x],
-                   mapping.entropy = length(cells.stat))
-  return(out)
-})
-stat.mappingEntropy = do.call(rbind, stat.mappingEntropy)
-saveRDS(stat.mappingEntropy, file =  paste0( root.dir, "data/8_5/stitching/mappingEntropy_seq2atlas.rds"))
 
 
 ```
