@@ -94,7 +94,7 @@ stderr <- function(x, na.rm=FALSE) {
 
 ```{r get-imputation, message=FALSE, warning=FALSE}
 
-
+# 
 # 
 # 
 # mean.imputed = bplapply(genes, function(current.gene){
@@ -187,24 +187,24 @@ stderr <- function(x, na.rm=FALSE) {
 #                        fracExpressed.cosine.imputed = fracExpressed.cosine.imputed
 #                        )
 # saveRDS(performance.seq, file =  paste0( root.dir, "data/8_5/stitching/performance_seq2atlas.rds"))
-# 
-# 
-# ```
-# 
-# # Mapping entropy
-# 
-# ```{r map-entropy, message=FALSE, warning=FALSE}
-# 
-# stat.mappingEntropy = lapply(1:ncol( mapping ), function(x){
-#   cells.stat = table( mapping[,x] )
-#   out = data.frame(uniqueID = colnames(mapping)[x],
-#                    mapping.entropy.n_cells = length(cells.stat), 
-#                    mapping.entropy.median_occurence = median(cells.stat, na.rm = T))
-#   return(out)
-# })
-# stat.mappingEntropy = do.call(rbind, stat.mappingEntropy)
-# saveRDS(stat.mappingEntropy, file =  paste0( root.dir, "data/8_5/stitching/mappingEntropy_seq2atlas.rds"))
-# 
+
+
+```
+
+# Mapping entropy
+
+```{r map-entropy, message=FALSE, warning=FALSE}
+
+stat.mappingEntropy = lapply(1:ncol( mapping ), function(x){
+  cells.stat = table( mapping[,x] )
+  out = data.frame(uniqueID = colnames(mapping)[x],
+                   mapping.entropy.n_cells = length(cells.stat), 
+                   mapping.entropy.median_occurence = median(cells.stat, na.rm = T))
+  return(out)
+})
+stat.mappingEntropy = do.call(rbind, stat.mappingEntropy)
+saveRDS(stat.mappingEntropy, file =  paste0( root.dir, "data/8_5/stitching/mappingEntropy_seq2atlas.rds"))
+
 
 
 
