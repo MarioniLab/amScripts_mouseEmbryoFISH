@@ -68,7 +68,6 @@ imputation = readRDS(paste0( root.dir, "data/8_5/stitching/imputation/imputation
 imputation = imputation[, colnames(imputation) %in% meta$uniqueID ]
 
 # order
-mapping = mapping[, order(colnames(mapping))]
 sce.seq = sce.seq[,order(colnames(sce.seq))]
 imputation = imputation[,order(colnames(imputation))]
 
