@@ -89,6 +89,7 @@ adjacency.list.within_z = adjacent_vertices(neigh.net.within_z, V(neigh.net.with
 
 spatialCorrelation = function(n.neigh){
   spatial.imputation = bplapply(colnames(sce.seq), function(current.cell){
+    print(current.cell)
     current.CT = meta$iterMNN_stable[meta$uniqueID == current.cell]
     current.adjacency.list = adjacency.list.within_z[names(adjacency.list.within_z) == current.cell]
     if (!is_empty(current.adjacency.list)){
@@ -109,7 +110,7 @@ spatialCorrelation = function(n.neigh){
         current.spatial.imputation = apply(imputation[cells.sameCT], 1, mean)
       }
       else if (length(cells.sameCT) == 1){
-        current.spatial.imputation = imputation[cells.sameCT]
+        current.spatial.imputation = imputation[,cells.sameCT]
       }
       else {
         current.spatial.imputation = rep(c(NA), times = length(genes))
