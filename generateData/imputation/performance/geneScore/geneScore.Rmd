@@ -77,7 +77,6 @@ mapping.atlas = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_atlas2atla
 mapping = mapping[, order(colnames(mapping))]
 sce.seq = sce.seq[,order(colnames(sce.seq))]
 counts.atlas = assay(sce.atlas, "logcounts")
-counts.cosine.atlas = as.matrix( cosineNorm( assay(sce.atlas, "logcounts")))
 genes = rownames(sce.seq)
 
 
@@ -85,7 +84,7 @@ genes = rownames(sce.seq)
 
 
 
-# Cosine
+# Gene score
 
 ```{r gene-score, message=FALSE, warning=FALSE}
 
@@ -93,24 +92,27 @@ genes = rownames(sce.seq)
 unq.embryo_z = unique(meta$embryo_z)
 gene.score.allEmbryoZ = bplapply(unq.embryo_z, function(x){
   gene.score.oneEmbryoZ = lapply(genes, function(current.gene){
-    current.cosine.atlas = counts.cosine.atlas[rownames(counts.cosine.atlas) == current.gene,]
     current.atlas = counts.atlas[rownames(counts.atlas) == current.gene,]
-    current.mapping = mapping[grepl(paste0( current.gene, "_"), rownames(mapping)), colnames(mapping) %in% meta$uniqueID[meta$embryo_z == x]]
-    current.mapping.atlas = mapping.atlas[grepl(paste0( current.gene, "_"), rownames(mapping.atlas)),]
   
-    # all
+    # closest cell
+    current.mapping = mapping[rownames(mapping) == paste0( current.gene, "_1"), colnames(mapping) %in% meta$uniqueID[meta$embryo_z == x]]
+    current.mapping.atlas = mapping.atlas[rownames(mapping.atlas) == paste0( current.gene, "_1"), ]
     tab = table(c(current.mapping))
     cells = names(tab) 
-    
     df = data.frame(atlas = current.atlas[cells], imputed = apply(current.mapping.atlas[, cells] , 2, function(x) mean(current.atlas[x]) ) ) 
-    score.logcounts <- cov.wt(df, wt = as.numeric(tab), cor = TRUE)
+    score.closestCell <- cov.wt(df, wt = as.numeric(tab), cor = TRUE)
     
-    df = data.frame(atlas = current.cosine.atlas[cells], imputed = apply(current.mapping.atlas[, cells] , 2, function(x) mean(current.cosine.atlas[x]) ) ) 
-    score.cosine <- cov.wt(df, cor = TRUE)
+    # weighted all
+    current.mapping = mapping[grepl(paste0( current.gene, "_"), rownames(mapping)), colnames(mapping) %in% meta$uniqueID[meta$embryo_z == x]]
+    current.mapping.atlas = mapping.atlas[grepl(paste0( current.gene, "_"), rownames(mapping.atlas)),]
+    tab = table(c(current.mapping))
+    cells = names(tab) 
+    df = data.frame(atlas = current.atlas[cells], imputed = apply(current.mapping.atlas[, cells] , 2, function(x) mean(current.atlas[x]) ) ) 
+    score.weightedAll <- cov.wt(df, wt = as.numeric(tab), cor = TRUE)
       
     out = data.frame( gene = current.gene,  embryo_z = x, 
-                      score.logcounts = as.numeric(score.logcounts$cor[1,2]), 
-                      score.cosine = as.numeric(score.cosine$cor[1,2])
+                      score.closestCell = as.numeric(score.closestCell$cor[1,2]),
+                      score.weightedAll = as.numeric(score.weightedAll$cor[1,2])
                       )
     return(out)
   })
