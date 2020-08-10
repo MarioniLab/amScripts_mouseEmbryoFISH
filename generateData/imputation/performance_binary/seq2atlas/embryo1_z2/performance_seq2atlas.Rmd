@@ -111,44 +111,15 @@ counts.seq = counts(sce.seq)
 getBinarized = function(x){
   return(as.numeric(x >= 1))  
 }
-# counts.binary.seq = t( apply(counts.seq, 1, function(x) getBinarized(x)) )
-# rownames(counts.binary.seq) = rownames(sce.seq)
-# colnames(counts.binary.seq) = colnames(sce.seq)
-# counts.binary.seq.denoised_1 = denoisingBinaryCounts(counts.binary.seq, meta, neigh.net, 1, mcparam)
-# counts.binary.seq.denoised_2 = denoisingBinaryCounts(counts.binary.seq, meta, neigh.net, 2, mcparam)
-# 
 counts.cosine.seq = as.matrix( cosineNorm(assay(sce.seq, "logcounts_area")) )
 counts.cosine.seq.denoised_1 = denoisingCounts(counts.cosine.seq, meta, neigh.net, 1, "median", mcparam)
 counts.cosine.seq.denoised_2 = denoisingCounts(counts.cosine.seq, meta, neigh.net, 2, "median", mcparam)
 
 # atlas
 counts.atlas = counts(sce.atlas)
-# getBinarized = function(x){
-#   return(as.numeric(x >= 1))  
-# }
-# counts.binary.atlas = t( apply(counts.atlas, 1, function(x) getBinarized(x)) )
-# rownames(counts.binary.atlas) = rownames(sce.atlas)
-# colnames(counts.binary.atlas) = colnames(sce.atlas)
-  
 counts.cosine.atlas = as.matrix( cosineNorm(assay(sce.atlas, "logcounts")) )
 
 n.neigh = 25
-
-# imputed-binary-mean
-# counts.binary.imputed = bplapply(genes, function(current.gene){
-#   current.atlas = counts.binary.atlas[rownames(counts.binary.atlas) == current.gene,]
-#   current.mapping = mapping[grepl(current.gene, rownames(mapping)),]
-#   mean.imputed = sapply(1:ncol(current.mapping), function(x){
-#     return( mean( current.atlas[current.mapping[,x]] , na.rm = T) )
-#   })
-#   return(mean.imputed)
-# }, BPPARAM = mcparam)
-# counts.binary.imputed = do.call(rbind, counts.binary.imputed)
-# colnames(counts.binary.imputed) = colnames(mapping)
-# rownames(counts.binary.imputed) = genes
-# 
-# counts.binary.imputed.denoised_1 = denoisingCounts(counts.binary.imputed, meta, neigh.net, 1, "mean", mcparam)
-# counts.binary.imputed.denoised_2 = denoisingCounts(counts.binary.imputed, meta, neigh.net, 2, "mean", mcparam)
 
 # imputed-cosine-q60
 counts.cosine.imputed.q60 = bplapply(genes, function(current.gene){
