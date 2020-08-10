@@ -47,7 +47,6 @@ sce.atlas = readRDS(paste0(root.dir, "data/reducedAtlas/E8_25__E8_5.rds"))
 sce.atlas = sce.atlas[, sce.atlas$stage == "E8.5"]
 counts.atlas = logcounts(sce.atlas)
 counts.atlas = assay(sce.atlas, "logcounts")
-counts.cosine.atlas = as.matrix( cosineNorm( assay(sce.atlas, "logcounts")))
 
 # load mapping
 mapping = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo1z2_libsize.rds"))
@@ -66,10 +65,15 @@ stderr <- function(x, na.rm=FALSE) {
 
 ```{r impute-seq, message=FALSE}
 
+
 getLogcountsSE = function(cells, weights){ 
   current.counts = counts.atlas[,match(cells, colnames(counts.atlas))] 
-  current.counts.expanded = rep(current.counts, times = weights)
-  current.counts.se = stderr(current.counts.expanded)
+  current.counts.expanded = lapply(1:ncol(current.counts), function(i){
+    out = replicate(weights[i], current.counts[,i])
+    return(out)
+  })
+  current.counts.expanded = do.call(cbind, current.counts.expanded)
+  current.counts.se = apply(current.counts.expanded, 1, stderr)
   return(current.counts.se) 
 } 
 
@@ -77,7 +81,7 @@ getLogcountsSE = function(cells, weights){
 logcounts.imputation_se.seq = bplapply(1:ncol(mapping), function(x){
   current.cell = mapping[,x]
   current.cell.stat = table(current.cell)
-  current.counts = getLogcountsSE(names(current.cell.stat), as.numeric( current.cell.stat )) 
+  current.counts = getLogcountsSE(names(current.cell.stat), as.numeric( current.cell.stat ) ) 
   return(current.counts)
 }, BPPARAM = mcparam)
 logcounts.imputation_se.seq = do.call(cbind, logcounts.imputation_se.seq)
