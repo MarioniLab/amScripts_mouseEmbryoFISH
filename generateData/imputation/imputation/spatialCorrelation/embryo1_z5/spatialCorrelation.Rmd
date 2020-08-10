@@ -130,7 +130,7 @@ spatialCorrelation = function(n.neigh){
   colnames(spatial.imputation) = colnames(sce.seq)
   
   spat.corr = bplapply(genes, function(current.gene){
-    return( cor(imputation[rownames(imputation) == current.gene,], spatial.imputation[rownames(spatial.imputation) == current.gene,], method = "pearson") )
+    return( cor(imputation[rownames(imputation) == current.gene,], spatial.imputation[rownames(spatial.imputation) == current.gene,], method = "pearson", use="complete.obs") )
   }, BPPARAM = mcparam)
   return(spat.corr)
 }
