@@ -106,7 +106,7 @@ spatialCorrelation = function(n.neigh){
       cells.sameCT = c( names(neighbor.CT)[neighbor.CT == current.CT])
       cells.sameCT = setdiff(cells.sameCT, current.cell)
       if (length(cells.sameCT) > 1){
-        current.spatial.imputation = apply(imputation[cells.sameCT], 1, mean)
+        current.spatial.imputation = apply(imputation[,cells.sameCT], 1, mean)
       }
       else if (length(cells.sameCT) == 1){
         current.spatial.imputation = imputation[,cells.sameCT]
