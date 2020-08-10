@@ -99,7 +99,10 @@ gene.score.allEmbryoZ = bplapply(unq.embryo_z, function(x){
     current.mapping.atlas = mapping.atlas[rownames(mapping.atlas) == paste0( current.gene, "_1"), ]
     tab = table(c(current.mapping))
     cells = names(tab) 
-    df = data.frame(atlas = current.atlas[cells], imputed = apply(current.mapping.atlas[, cells] , 2, function(x) mean(current.atlas[x]) ) ) 
+    imputed = sapply(current.mapping.atlas[cells], function(x){
+      return( mean(current.atlas[x]) )
+    })
+    df = data.frame(atlas = current.atlas[cells], imputed = imputed ) 
     score.closestCell <- cov.wt(df, wt = as.numeric(tab), cor = TRUE)
     
     # weighted all
