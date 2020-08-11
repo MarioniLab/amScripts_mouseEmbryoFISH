@@ -1,5 +1,5 @@
 ---
-title: "Pipeline to impute atlas onto spatial embryo."
+title: "Pipeline to impute atlas onto spatial embryo. TOY (10 genes)"
 output:
   BiocStyle::html_document:
     code_folding: hide
@@ -16,7 +16,7 @@ output:
 
 Options:
 
-nPC = 100
+nPC = 50
 
 nn = 1
 
@@ -28,7 +28,7 @@ library(Matrix)
 library(scran)
 library(BiocParallel)
 library(BiocNeighbors)
-ncores = 10
+ncores = 20
 mcparam = MulticoreParam(workers = ncores)
 register(mcparam)
 library(igraph)
@@ -111,13 +111,11 @@ closestCell.seq = bplapply(genes, function(current.gene){
                            get.index = TRUE, get.distance = FALSE)
   cells.mapped = t(apply(current.knns$index, 1, function(x) colnames(sce.atlas)[x]))
   colnames(cells.mapped) = colnames(sce.seq)
-  saveRDS(cells.mapped, file =  paste0( root.dir, "data/8_5/stitching/nn_1/closest_cell_seq2atlas_", current.gene, ".rds"))
   return(cells.mapped)
 }, BPPARAM = mcparam)
 
 closestCell.seq = do.call(rbind, closestCell.seq )
 rownames(closestCell.seq) = genes
-
 saveRDS(closestCell.seq, file =  paste0( root.dir, "data/8_5/stitching/nn_1/closest_cell_seq2atlas.rds"))
 
 
@@ -129,13 +127,13 @@ saveRDS(closestCell.seq, file =  paste0( root.dir, "data/8_5/stitching/nn_1/clos
 
 counts.atlas = logcounts(sce.atlas)
 
-logcounts.imputed.seq = lapply(genes, function(current.gene){
+logcounts.imputed.seq = bplapply(genes, function(current.gene){
   current.closestCell = closestCell.seq[current.gene,]
   current.imputed = sapply(1:length(current.closestCell), function(x){
     return(counts.atlas[current.gene, current.closestCell[x]])
   })
   return(current.imputed)
-})
+}, BPPARAM = mcparam)
 logcounts.imputed.seq = do.call(rbind, logcounts.imputed.seq)
 rownames(logcounts.imputed.seq) = genes
 colnames(logcounts.imputed.seq) = colnames(closestCell.seq)
