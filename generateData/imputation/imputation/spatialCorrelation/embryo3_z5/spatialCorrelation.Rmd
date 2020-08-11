@@ -56,11 +56,13 @@ sce.atlas = readRDS(paste0(root.dir, "data/reducedAtlas/E8_25__E8_5.rds"))
 sce.atlas = sce.atlas[, sce.atlas$stage == "E8.5"]
 
 meta = data.frame( colData(sce.seq) )
-meta.CT = readRDS(paste0(root.dir, "data/8_5/source/iterMNN_mapping_dt.Rds"))
+meta.CT = readRDS(paste0(root.dir, "data/8_5/source/celltype_annotation_refined.Rds"))
+meta.CT = rownames_to_column(meta.CT, var = "uniqueID")
 meta = merge(meta, meta.CT, all.x = T, all.y = F)
+CTs.2discard = c("Erythroid", "ExE endoderm", "Blood progenitors", "Low quality")
+meta = meta[!meta$celltype_mapped_refined %in% CTs.2discard, ]
 meta$embryo_z = paste0(meta$embryo, "_", meta$z)
-CTs.2discard = c("Erythroid", "ExE endoderm", "NMP", "Presomitic mesoderm")
-meta = meta[meta$iterMNN_stable_mapping_quality == "Good" & !meta$iterMNN_stable %in% CTs.2discard & meta$embryo_z == "embryo3_5", ]
+meta = meta[meta$embryo_z == "embryo3_5" , ]
 sce.seq = sce.seq[, colnames(sce.seq) %in% meta$uniqueID ]
 
 # load mappings
@@ -89,7 +91,7 @@ adjacency.list.within_z = adjacent_vertices(neigh.net.within_z, V(neigh.net.with
 
 spatialCorrelation = function(n.neigh){
   spatial.imputation = bplapply(colnames(sce.seq), function(current.cell){
-    current.CT = meta$iterMNN_stable[meta$uniqueID == current.cell]
+    current.CT = meta$celltype_mapped_refined[meta$uniqueID == current.cell]
     current.adjacency.list = adjacency.list.within_z[names(adjacency.list.within_z) == current.cell]
     if (!is_empty(current.adjacency.list)){
       if (n.neigh == 1){
@@ -102,7 +104,7 @@ spatialCorrelation = function(n.neigh){
         })
         neighbor.cells = unique(c(neighbor.cells, unlist(second.neighbor.cells)))
       }
-      neighbor.CT = sapply(neighbor.cells, function(x) meta$iterMNN_stable[meta$uniqueID == x])
+      neighbor.CT = sapply(neighbor.cells, function(x) meta$celltype_mapped_refined[meta$uniqueID == x])
       cells.sameCT = c( names(neighbor.CT)[neighbor.CT == current.CT])
       cells.sameCT = setdiff(cells.sameCT, current.cell)
       if (length(cells.sameCT) > 1){
@@ -127,15 +129,17 @@ spatialCorrelation = function(n.neigh){
   colnames(spatial.imputation) = colnames(sce.seq)
   
   spat.corr = bplapply(genes, function(current.gene){
-    return( cor(imputation[rownames(imputation) == current.gene,], spatial.imputation[rownames(spatial.imputation) == current.gene,], method = "pearson", use="complete.obs") )
+    out = data.frame(gene = current.gene, spat.corr = cor(imputation[rownames(imputation) == current.gene,], spatial.imputation[rownames(spatial.imputation) == current.gene,], method = "pearson", use="complete.obs"))
+    return( out )
   }, BPPARAM = mcparam)
+  spat.corr = do.call(rbind, spat.corr)
   return(spat.corr)
 }
 spat.corr.nn_1 = spatialCorrelation(1)
 spat.corr.nn_2 = spatialCorrelation(2)
 spatial.correlation = list(n.neigh_1 = spat.corr.nn_1, 
                                   n.neigh_2 = spat.corr.nn_2)
-saveRDS(spatial.correlation, file =  paste0( root.dir, "data/8_5/stitching/imputation/spatialCorrelation_embryo3z5.rds"))
+saveRDS(spatial.correlation, file =  paste0( root.dir, "data/8_5/stitching/imputation/spatialCorrelation/spatialCorrelation_embryo3z5.rds"))
 
 
 ```

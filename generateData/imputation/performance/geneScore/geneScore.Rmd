@@ -54,10 +54,11 @@ sce.atlas = sce.atlas[rownames(sce.seq), sce.atlas$stage == "E8.5"]
 sce.seq = sce.seq[order(rownames(sce.seq)),]
 sce.atlas = sce.atlas[order(rownames(sce.atlas)),]
 meta = data.frame( colData(sce.seq) )
-meta.CT = readRDS(paste0(root.dir, "data/8_5/source/iterMNN_mapping_dt.Rds"))
+meta.CT = readRDS(paste0(root.dir, "data/8_5/source/celltype_annotation_refined.Rds"))
+meta.CT = rownames_to_column(meta.CT, var = "uniqueID")
 meta = merge(meta, meta.CT, all.x = T, all.y = F)
-CTs.2discard = c("Erythroid", "ExE endoderm", "NMP", "Presomitic mesoderm")
-meta = meta[meta$iterMNN_stable_mapping_quality == "Good" & !meta$iterMNN_stable %in% CTs.2discard, ]
+CTs.2discard = c("Erythroid", "ExE endoderm", "Blood progenitors", "Low quality")
+meta = meta[!meta$celltype_mapped_refined %in% CTs.2discard, ]
 meta$embryo_z = paste0(meta$embryo, "_", meta$z)
 sce.seq = sce.seq[, colnames(sce.seq) %in% meta$uniqueID ]
 
