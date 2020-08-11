@@ -42,6 +42,7 @@ library(tibble)
 library(dplyr)
 library(purrr)
 
+#root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
 root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
 source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
 
@@ -89,22 +90,19 @@ cells = names(tab)
 current.mapping.atlas = mapping.atlas[, cells]
   
 gene.score = bplapply(genes, function(current.gene){
-  #current.cosine.atlas = counts.cosine.atlas[rownames(counts.cosine.atlas) == current.gene,]
   current.atlas = counts.atlas[rownames(counts.atlas) == current.gene,]
     
   df = data.frame(atlas = current.atlas[cells], imputed = apply(current.mapping.atlas, 2, function(x) mean(current.atlas[x]) ) ) 
   score.logcounts <- cov.wt(df, wt = as.numeric(tab), cor = TRUE)
-  
-  #df = data.frame(atlas = current.cosine.atlas[cells], imputed = apply(current.mapping.atlas , 2, function(x) mean(current.cosine.atlas[x]) ) )
-  #score.cosine <- cov.wt(df, wt = as.numeric(tab), cor = TRUE)
-      
   out = data.frame( gene = current.gene, 
                       score.logcounts = as.numeric(score.logcounts$cor[1,2])
                       )
   return(out)
 }, BPPARAM = mcparam)
 gene.score = do.call(rbind, gene.score)
-saveRDS(gene.score, file =  paste0( root.dir, "data/8_5/stitching/geneScore_imputation_embryo1z2.rds"))
+saveRDS(gene.score, file =  paste0( root.dir, "data/8_5/stitching/imputation/geneScore/geneScore_imputation_embryo1z2.rds"))
+
+
 
 
 ```

@@ -104,7 +104,7 @@ gene.score = bplapply(genes, function(current.gene){
   return(out)
 }, BPPARAM = mcparam)
 gene.score = do.call(rbind, gene.score)
-saveRDS(gene.score, file =  paste0( root.dir, "data/8_5/stitching/geneScore_imputation_embryo2z2.rds"))
+saveRDS(gene.score, file =  paste0( root.dir, "data/8_5/stitching/imputation/geneScore/geneScore_imputation_embryo2z2.rds"))
 
 
 ```
