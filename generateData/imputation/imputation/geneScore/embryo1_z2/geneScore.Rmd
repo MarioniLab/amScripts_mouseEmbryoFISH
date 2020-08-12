@@ -94,9 +94,11 @@ gene.score = bplapply(genes, function(current.gene){
   current.atlas = counts.atlas[rownames(counts.atlas) == current.gene,]
     
   df = data.frame(atlas = current.atlas[cells], imputed = apply(current.mapping.atlas, 2, function(x) mean(current.atlas[x]) ) ) 
-  score.logcounts <- cov.wt(df, wt = as.numeric(tab), cor = TRUE)
+  score.weighted <- cov.wt(df, wt = as.numeric(tab), cor = TRUE)
+  score.unweighted <- cov.wt(df, cor = TRUE)
   out = data.frame( gene = current.gene, 
-                      score.logcounts = as.numeric(score.logcounts$cor[1,2])
+                      score.weighted = as.numeric(score.weighted$cor[1,2]),
+                      score.unweighted = as.numeric(score.unweighted$cor[1,2])
                       )
   return(out)
 }, BPPARAM = mcparam)

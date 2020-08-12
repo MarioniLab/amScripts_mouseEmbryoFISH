@@ -113,10 +113,12 @@ gene.score.allEmbryoZ = bplapply(unq.embryo_z, function(x){
     cells = names(tab) 
     df = data.frame(atlas = current.atlas[cells], imputed = apply(current.mapping.atlas[, cells] , 2, function(x) mean(current.atlas[x]) ) ) 
     score.weightedAll <- cov.wt(df, wt = as.numeric(tab), cor = TRUE)
-      
+    score.unweightedAll <- cov.wt(df, wt = as.numeric(tab), cor = TRUE)
+    
     out = data.frame( gene = current.gene,  embryo_z = x, 
                       score.closestCell = as.numeric(score.closestCell$cor[1,2]),
-                      score.weightedAll = as.numeric(score.weightedAll$cor[1,2])
+                      score.weightedAll = as.numeric(score.weightedAll$cor[1,2]),
+                      score.unweightedAll = as.numeric(score.unweightedAll$cor[1,2])
                       )
     return(out)
   })
