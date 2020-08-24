@@ -51,7 +51,8 @@ counts.seq = as.matrix(counts(sce.seq))
 
 # merge meta + CT annotation
 meta = data.frame( colData(sce.seq))
-meta.CT = readRDS(paste0(root.dir, "data/8_5/source/iterMNN_mapping_dt.Rds"))
+meta.CT = readRDS(paste0(root.dir, "data/8_5/source/celltype_annotation_refined.Rds"))
+meta.CT = rownames_to_column(meta.CT, var = "uniqueID")
 meta = merge(meta, meta.CT, all.x = T, all.y = F)
 
 genes = rownames(sce.seq)
@@ -75,7 +76,7 @@ adjacency.list.between_z = adjacent_vertices(neigh.net.within_z, V(neigh.net.wit
 
 spatialCoherenceWithin = function(n.neigh){
   spatial.coherency.within_z = bplapply(colnames(sce.seq), function(current.cell){
-    current.CT = meta$iterMNN_stable[meta$uniqueID == current.cell]
+    current.CT = meta$celltype_mapped_refined[meta$uniqueID == current.cell]
     current.adjacency.list = adjacency.list.within_z[names(adjacency.list.within_z) == current.cell]
     if (!is_empty(current.adjacency.list)){
       if (n.neigh == 1){
@@ -88,7 +89,7 @@ spatialCoherenceWithin = function(n.neigh){
         })
         neighbor.cells = unique(c(neighbor.cells, unlist(second.neighbor.cells)))
       }
-      neighbor.CT = sapply(neighbor.cells, function(x) meta$iterMNN_stable[meta$uniqueID == x])
+      neighbor.CT = sapply(neighbor.cells, function(x) meta$celltype_mapped_refined[meta$uniqueID == x])
       cells.sameCT = c( names(neighbor.CT)[neighbor.CT == current.CT])
       cells.sameCT = setdiff(cells.sameCT, current.cell)
       if (length(cells.sameCT) > 1){
@@ -140,7 +141,7 @@ saveRDS(spatial.coherency.within_z, file =  paste0( root.dir, "data/8_5/stitchin
 
 spatialCoherenceBetween = function(n.neigh){
   spatial.coherency.between_z = bplapply(colnames(sce.seq), function(current.cell){
-    current.CT = meta$iterMNN_stable[meta$uniqueID == current.cell]
+    current.CT = meta$celltype_mapped_refined[meta$uniqueID == current.cell]
     current.adjacency.list = adjacency.list.between_z[names(adjacency.list.between_z) == current.cell]
     if (!is_empty(current.adjacency.list)){
       if (n.neigh == 1){
@@ -153,7 +154,7 @@ spatialCoherenceBetween = function(n.neigh){
         })
         neighbor.cells = unique(c(neighbor.cells, unlist(second.neighbor.cells)))
       }
-      neighbor.CT = sapply(neighbor.cells, function(x) meta$iterMNN_stable[meta$uniqueID == x])
+      neighbor.CT = sapply(neighbor.cells, function(x) meta$celltype_mapped_refined[meta$uniqueID == x])
       cells.sameCT = c( names(neighbor.CT)[neighbor.CT == current.CT])
       cells.sameCT = setdiff(cells.sameCT, current.cell)
       if (length(cells.sameCT) > 1){
