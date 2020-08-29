@@ -35,7 +35,7 @@ library(tibble)
 library(dplyr)
 library(purrr)
 library(Seurat)
-library(hdf5r)
+#library(hdf5r)
 library(SeuratDisk)
 
 #root.dir = "/Users/alsu/Develop/spatial/spleen/"
