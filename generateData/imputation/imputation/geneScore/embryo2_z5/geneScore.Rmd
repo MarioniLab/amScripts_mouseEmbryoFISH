@@ -60,7 +60,8 @@ meta.CT = readRDS(paste0(root.dir, "data/8_5/source/celltype_annotation_refined.
 meta.CT = rownames_to_column(meta.CT, var = "uniqueID")
 meta = merge(meta, meta.CT, all.x = T, all.y = F)
 meta$embryo_z = paste0(meta$embryo, "_", meta$z)
-CTs.2discard = c("Erythroid", "ExE endoderm", "Blood progenitors", "Low quality")
+#CTs.2discard = c("Erythroid", "ExE endoderm", "Blood progenitors", "Low quality")
+CTs.2discard = c("Low quality")
 meta = meta[!meta$celltype_mapped_refined %in% CTs.2discard, ]
 meta = meta[meta$embryo_z == "embryo2_5" , ]
 sce.seq = sce.seq[, colnames(sce.seq) %in% meta$uniqueID ]
