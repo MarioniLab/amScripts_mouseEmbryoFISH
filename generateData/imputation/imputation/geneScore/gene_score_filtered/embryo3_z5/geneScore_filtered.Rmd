@@ -1,0 +1,119 @@
+---
+title: "Gene score"
+output:
+  BiocStyle::html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes  
+  html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: true
+    theme: united
+---
+
+Settings:
+
+nn = 25
+
+# Load dependencies and source data
+
+```{r load_data, message=FALSE}
+
+library(Matrix)
+library(scran)
+library(BiocParallel)
+library(BiocNeighbors)
+ncores = 20
+mcparam = MulticoreParam(workers = ncores)
+register(mcparam)
+library(igraph)
+library(reshape2)
+library(knitr)
+library(scater)
+library(scales)
+library(biomaRt)
+library(batchelor)
+library(irlba)
+library(batchelor)
+library(tibble)
+library(dplyr)
+library(purrr)
+
+#root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
+root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
+
+# load seq embryos
+load_embryo_8.5(dir = "cluster")
+sce.seq = sce[!rownames(sce) == "Xist", ]
+
+# load atlas 
+sce.atlas = readRDS(paste0(root.dir, "data/reducedAtlas/E8_25__E8_5.rds"))
+sce.atlas = sce.atlas[, sce.atlas$stage == "E8.5"]
+
+# load meta for seq
+meta = data.frame( colData(sce.seq) )
+meta.CT = readRDS(paste0(root.dir, "data/8_5/source/celltype_annotation_refined.Rds"))
+meta.CT = rownames_to_column(meta.CT, var = "uniqueID")
+meta = merge(meta, meta.CT, all.x = T, all.y = F)
+meta$embryo_z = paste0(meta$embryo, "_", meta$z)
+CTs.2discard = c("Erythroid", "ExE endoderm", "Blood progenitors", "Low quality")
+meta = meta[!meta$celltype_mapped_refined %in% CTs.2discard, ]
+
+# load mapping atlas
+mapping.atlas = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_atlas2atlas.rds"))
+counts.atlas = assay(sce.atlas, "logcounts")
+
+
+```
+
+# Gene score
+
+```{r gene-score, message=FALSE, warning=FALSE}
+
+
+genes = rownames(sce.atlas)
+embryo = 3
+z = 5
+
+current.meta = meta[meta$embryo_z == paste0("embryo" , embryo , "_" , z) , ]
+current.mapping = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo" , embryo , "z" , z , "_libsize.rds"))
+current.mapping = current.mapping[, colnames(current.mapping) %in% current.meta$uniqueID ]
+    
+tab = table(c(current.mapping))
+cells = names(tab) 
+current.mapping.atlas = mapping.atlas[, cells]
+    
+gene.score.per_embryo_z = bplapply(genes, function(current.gene){
+  current.atlas = counts.atlas[rownames(counts.atlas) == current.gene,]
+    
+  df = data.frame(atlas = current.atlas[cells], imputed = apply(current.mapping.atlas, 2, function(x) mean(current.atlas[x]) ) ) 
+  score.weighted <- cov.wt(df, wt = as.numeric(tab), cor = TRUE)
+  score.unweighted <- cov.wt(df, cor = TRUE)
+  out = data.frame( gene = current.gene, 
+                    score.weighted = as.numeric(score.weighted$cor[1,2]),
+                    score.unweighted = as.numeric(score.unweighted$cor[1,2])
+                    )
+  return(out)
+}, BPPARAM = mcparam)
+gene.score.per_embryo_z = do.call(rbind, gene.score.per_embryo_z) 
+gene.score.per_embryo_z$embryo = embryo
+gene.score.per_embryo_z$z = z
+saveRDS(gene.score.per_embryo_z, file =  paste0( root.dir, "data/8_5/stitching/imputation/geneScore/geneScore_imputation_embryo1z2_filtered.rds"))
+
+
+
+```
+
+
+
+#Session Info
+
+```{r sessinf}
+
+sessionInfo()
+
+```
