@@ -102,7 +102,7 @@ gene.score.per_embryo_z = bplapply(genes, function(current.gene){
 gene.score.per_embryo_z = do.call(rbind, gene.score.per_embryo_z) 
 gene.score.per_embryo_z$embryo = embryo
 gene.score.per_embryo_z$z = z
-saveRDS(gene.score.per_embryo_z, file =  paste0( root.dir, "data/8_5/stitching/imputation/geneScore/geneScore_imputation_embryo1z2_filtered.rds"))
+saveRDS(gene.score.per_embryo_z, file =  paste0( root.dir, "data/8_5/stitching/imputation/geneScore/geneScore_imputation_embryo" , embryo , "z" , z , "_filtered.rds"))
 
 
 
