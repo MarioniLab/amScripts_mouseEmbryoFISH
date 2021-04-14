@@ -8,9 +8,9 @@ GitHub folder containing scripts to
 
 ***Scripts:***
 
-`.\core_functions.R\` contains functions that are frequently used throughout other pipleines.
+`.\core_functions.R` contains functions that are frequently used throughout other pipleines.
 
-`.\visualization_functions.R\` contains color codes for celltypes.
+`.\visualization_functions.R` contains color codes for celltypes.
 
 ---
 
