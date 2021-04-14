@@ -1,0 +1,188 @@
+---
+title: "Pipleine to assess imputation: performance, cell mapping stability and others."
+output:
+  BiocStyle::html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes  
+  html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: true
+    theme: united
+---
+
+
+# Load dependencies and source data
+
+```{r load_data, message=FALSE}
+
+
+library(Matrix)
+library(scran)
+library(igraph)
+library(reshape2)
+library(knitr)
+library(scater)
+library(scales)
+library(biomaRt)
+library(VennDiagram)
+library(RColorBrewer)
+library(tibble)
+library(ggplot2)
+library(tidyverse)
+library(ggpubr)
+library(viridis)
+library(stringr)
+library(ggridges)
+library(ggpubr)
+library(ggforce)
+library(pROC)
+library(batchelor)
+library(wesanderson)
+library(plyr)
+library(dplyr)
+
+root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
+figures.dir = paste0(root.dir, "figures/imputation/performance/")
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/visualization_functions.R"))
+
+# load seq
+load_embryo_8.5(dir = "local")
+sce.seq = sce[!rownames(sce) == "Xist", ]
+meta = data.frame(colData(sce.seq))
+genes = rownames(sce.seq)
+
+# add CT
+meta.CT = readRDS(paste0(root.dir, "data/8_5/source/celltype_annotation_refined.Rds"))
+meta.CT = rownames_to_column(meta.CT, var = "uniqueID")
+meta = merge(meta, meta.CT, all.x = T, all.y = F)
+CTs.2discard = c("Low quality")
+meta = meta[!meta$celltype_mapped_refined %in% CTs.2discard, ]
+#meta = meta[,c("uniqueID", "embryo", "z", "x_global_affine", "y_global_affine", "celltype_mapped_refined")]
+meta$embryo_z = paste0(meta$embryo, "_", meta$z)
+
+# performance
+performance.libsize = readRDS(paste0(root.dir, "data/8_5/stitching/performance_seq2atlas.rds"))
+
+# filter and order data along meta
+clean.seq = function(df){
+  df = df[, colnames(df) %in% meta$uniqueID]
+  df = df[, order(colnames(df))]
+  return(df)
+}
+sce.seq = clean.seq(sce.seq)
+counts.libsize = assay(sce.seq, "cpm_wo_xist")
+performance.libsize$mean.imputed = clean.seq(performance.libsize$mean.imputed)
+
+# load gene prediction score
+gene.score = readRDS(paste0(root.dir, "data/8_5/stitching/geneScore_performance.rds"))
+colnames(gene.score) = c("gene", "embryo_z", "score.closestCell", "score.weightedAll", "score.unweightedAll")
+
+# load atlas
+sce.atlas = readRDS(paste0(root.dir, "data/reducedAtlas/E8_25__E8_5.rds"))
+sce.atlas = sce.atlas[rownames(sce.seq), sce.atlas$stage == "E8.5"]
+counts.atlas = logcounts(sce.atlas)
+meta.atlas = as.data.frame(colData(sce.atlas))
+
+
+```
+
+# Get stat
+
+For each seqFISH gene, let's calculate its performance as Pearson correlation between imputed and experimentally measured logcounts.
+
+```{r performance-get-stat, warning=FALSE}
+
+
+
+stat = lapply( genes, function(current.gene){
+  current.counts = data.frame(uniqueID = colnames(sce.seq),
+                              seq = counts.libsize[current.gene,],
+                              imputed = performance.libsize$mean.imputed[current.gene,]
+                              ) 
+  current.counts = merge(current.counts, meta, by = "uniqueID", all.y = T, all.x = F)
+  current.stat = as.data.frame( current.counts %>% dplyr::group_by(embryo_z) %>% 
+                                  dplyr::summarise(corr = cor(seq, imputed, method = "pearson")))
+  current.stat$gene = current.gene
+  current.stat = merge(current.stat, gene.score[, c("gene", "embryo_z", "score.weightedAll")], by = c("gene", "embryo_z"), all.x = T)
+  return(current.stat)
+})
+stat = do.call(rbind, stat)
+stat$corr.ratio = stat$corr/stat$score.weightedAll
+
+
+
+```
+
+# Plot
+
+## Violin distribution
+
+For each embryo/z -- plot distribution of normalized performance
+
+Supplementary figure 13A.
+
+```{r performance-plot-violins, warning=FALSE}
+
+
+names.ds = data.frame(embryo_z = c("embryo1_2" , "embryo1_5" , "embryo2_2" , "embryo2_5" , "embryo3_2" , "embryo3_5") ,
+                      embryo_z_title = c("Embryo1.1" , "Embryo1.2" , "Embryo2.1" , "Embryo2.2" , "Embryo3.1" , "Embryo3.2")) 
+stat = merge(stat , names.ds)
+
+pal <- wes_palette("FantasticFox1", 6, type = "continuous")
+p <- ggplot(stat, aes(x = embryo_z_title, y = corr.ratio, fill = embryo_z_title)) + 
+  geom_violin(aes(fill = embryo_z_title ), color = "transparent", alpha = 0.5) +
+  scale_fill_manual(values = pal, name = "") + 
+  geom_boxplot(outlier.alpha = 0, coef = 0, color = "gray40", width = 0.4) +
+  labs(x = "", y = "Performance / Prediction") +
+  theme_classic() + theme( axis.text.x = element_blank() ) + theme(text = element_text(size=20)) +
+  scale_y_continuous(breaks=c(0, 0.5, 1, 1.5)) + ylim(c(-0.5,2.5))
+p
+ggsave(filename = paste0(figures.dir, "sup/performance_violins.png"), plot = p, width = 9, height = 7)
+
+
+
+```
+
+## Scatters 
+
+Supplementary figure 13B.
+
+```{r performance-plot-scatters, warning=FALSE}
+
+
+
+thresh = 0.1
+
+unq.embryo_z = unique(stat$embryo_z_title)
+stat = lapply(unq.embryo_z, function(embryo_z){
+  current.stat = stat[stat$embryo_z_title == embryo_z & stat$score.weightedAll > thresh, ]
+  return(current.stat)
+})
+stat = do.call(rbind, stat)
+
+
+p <- ggplot(stat, aes(x = score.weightedAll, y = corr.ratio, col = embryo_z_title)) +
+  geom_point(size = 3, alpha = .75) +
+  scale_color_manual(values = pal) +
+  labs(x = "Prediction", y = "Performance / Prediction") + 
+  facet_wrap(~embryo_z_title , nrow = 1) +
+  theme_classic() + theme(legend.position = "none") + theme(text = element_text(size=20)) 
+p
+ggsave(filename = paste0(figures.dir, "sup/performance_scatters.png"), plot = p, width = 15, height = 5)
+
+
+
+
+
+```
+
+#Session Info
+
+```{r sessinf}
+sessionInfo()
+```

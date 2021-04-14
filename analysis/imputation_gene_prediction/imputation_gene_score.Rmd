@@ -1,0 +1,124 @@
+---
+title: "Pipleine to save prediction scores for final imputation."
+output:
+  BiocStyle::html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes  
+  html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: true
+    theme: united
+---
+
+# Load dependencies and source data
+
+```{r load_data, message=FALSE}
+
+library(Matrix)
+library(scran)
+library(igraph)
+library(reshape2)
+library(knitr)
+library(scater)
+library(scales)
+library(biomaRt)
+library(VennDiagram)
+library(RColorBrewer)
+library(tibble)
+library(ggplot2)
+library(tidyverse)
+library(ggpubr)
+library(viridis)
+library(stringr)
+library(ggridges)
+library(ggpubr)
+library(ggforce)
+library(pROC)
+library(batchelor)
+library(wesanderson)
+library(plyr)
+library(MouseGastrulationData)
+
+root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
+figures.dir = paste0(root.dir, "figures/imputation/imputation/")
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/visualization_functions.R"))
+
+unq.embryo = c(1,2,3)
+unq.z = c(2,5)
+
+# load gene prediction score
+loadGeneScore = function(embryo, z){
+  current.gene.score = readRDS(paste0(root.dir, "data/8_5/stitching/imputation/geneScore/geneScore_imputation_embryo", embryo, "z", z,".rds"))
+  current.gene.score$embryo_z = paste0("embryo", embryo, "_", z)
+  return(current.gene.score)
+}
+
+stat = lapply(unq.embryo, function(embryo){
+  gene.score.currentEmbryo = lapply(unq.z, function(z){
+    return( loadGeneScore(embryo, z))
+  })
+  gene.score.currentEmbryo = do.call(rbind, gene.score.currentEmbryo)
+  return(gene.score.currentEmbryo)
+})  
+stat = do.call(rbind , stat)
+
+
+
+```
+
+# Save to Supp table
+
+Supplementary table 9.
+
+```{r gene-score-distr, warning=FALSE}
+
+
+eps = 0.00001
+corr.thresh = 0.01
+
+stat = stat[, c("gene" , "score.weighted" , "embryo_z")]
+stat$score.weighted[is.na(stat$score.weighted)] = eps
+stat$score.weighted[stat$score.weighted < eps] = eps
+
+stat.per_gene = as.data.frame(stat %>% group_by(gene) %>% 
+                                dplyr::summarise(median_prediction = median(score.weighted)))
+
+stat.per_gene.reduced = stat.per_gene[stat.per_gene$median_prediction > corr.thresh , ]
+stat.per_gene.reduced = stat.per_gene.reduced[order(stat.per_gene.reduced$median_prediction, decreasing = T), ]
+stat.per_gene.reduced$rank_prediction = c(1:nrow(stat.per_gene.reduced))
+write.csv(stat.per_gene.reduced , paste0(root.dir , "data/sup_tables/predictionStat_perGene.csv"), row.names = FALSE)
+
+
+stat.reduced = stat[stat$score.weighted > corr.thresh , ]
+stat.reduced = lapply(unique(stat.reduced$embryo_z) , function(embryo_z){
+  current.stat = stat.reduced[stat.reduced$embryo_z == embryo_z , ]
+  current.stat = current.stat[order(current.stat$score.weighted, decreasing = T), ]
+  current.stat$rank_prediction = c(1:nrow(current.stat))
+  colnames(current.stat) = c("gene" , "prediction" , "embryo_z" , "rank_prediction")
+  return(current.stat)
+})
+stat.reduced = do.call(rbind , stat.reduced)
+stat.reduced$embryo_z[stat.reduced$embryo_z == "embryo1_2"] = "Embryo1.1"
+stat.reduced$embryo_z[stat.reduced$embryo_z == "embryo1_5"] = "Embryo1.2"
+stat.reduced$embryo_z[stat.reduced$embryo_z == "embryo2_2"] = "Embryo2.1"
+stat.reduced$embryo_z[stat.reduced$embryo_z == "embryo2_5"] = "Embryo2.2"
+stat.reduced$embryo_z[stat.reduced$embryo_z == "embryo3_2"] = "Embryo3.1"
+stat.reduced$embryo_z[stat.reduced$embryo_z == "embryo3_5"] = "Embryo3.2"
+write.csv(stat.reduced , paste0(root.dir , "data/sup_tables/predictionStat_perGene_EmbryoZ.csv"), row.names = FALSE)
+
+
+
+
+```
+
+
+#Session Info
+
+```{r sessinf}
+sessionInfo()
+```

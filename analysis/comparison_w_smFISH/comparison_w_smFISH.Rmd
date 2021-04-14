@@ -1,0 +1,624 @@
+---
+title: "Imputation - comparison between smFISH mesured counts and imputation"
+output:
+  BiocStyle::html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes  
+  html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: true
+    theme: united
+---
+
+
+# Load dependencies and source data
+
+```{r load_data, message=FALSE}
+
+library(Matrix)
+library(scran)
+library(BiocParallel)
+library(BiocNeighbors)
+ncores = 1
+mcparam = MulticoreParam(workers = ncores)
+register(mcparam)
+library(igraph)
+library(reshape2)
+library(knitr)
+library(scater)
+library(scales)
+library(biomaRt)
+library(batchelor)
+library(irlba)
+library(batchelor)
+library(tibble)
+library(dplyr)
+library(viridis)
+library(ggridges)
+library(ggpubr)
+library(ggplot2)
+library(ggforce)
+library(binr)
+library(tripack)
+library(sp)
+library(rgdal)
+library(maps)
+library(ggrepel)
+library(wesanderson)
+library(plyr)
+
+root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
+figures.dir = paste0(root.dir, "figures/imputation/")
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/visualization_functions.R"))
+
+# load seq
+load_embryo_8.5(dir = "local")
+sce.seq = sce[!rownames(sce) == "Xist", ]
+meta = data.frame(colData(sce.seq))
+# add CT
+meta.CT = readRDS(paste0(root.dir, "data/8_5/source/celltype_annotation_refined.Rds"))
+meta.CT = rownames_to_column(meta.CT, var = "uniqueID")
+meta = merge(meta, meta.CT, all.x = T, all.y = F)
+CTs.2discard = c("Low quality")
+meta = meta[!meta$celltype_mapped_refined %in% CTs.2discard, ]
+meta$embryo_z = paste0(meta$embryo, "_", meta$z)
+
+sce.seq = sce.seq[, colnames(sce.seq) %in% meta$uniqueID]
+counts.seq = assay(sce.seq, "cpm_wo_xist")
+
+# load sm
+sce.upper = readRDS( paste0(root.dir, "data/8_5/source/sce_smFISH_counts_new.Rds"))
+sce.upper = sce.upper[, colnames(sce.upper) %in% meta$uniqueID]
+sce = sce[, colnames(sce) %in% meta$uniqueID]
+sce.upper = sce.upper[, order(colnames(sce.upper))]
+sce = sce[, order(colnames(sce))]
+assay(sce.upper, "cpm_wo_xist") <- logcounts(scater::logNormCounts(sce.upper, size_factors = as.numeric( sce$total - counts( sce["Xist"] )) ))
+counts.sm = assay(sce.upper, "cpm_wo_xist")
+genes = rownames(counts.sm)
+
+# boundary polygons
+boundary_polygons = getSegmentationVerticesDF(colData(sce.seq),
+                                              xname = "segmentation_vertices_x_global_affine",
+                                              yname = "segmentation_vertices_y_global_affine",
+                                              othercols = c("uniqueID", "embryo", "z"))
+boundary_polygons = merge(boundary_polygons, meta[, c("uniqueID", "celltype_mapped_refined")], all.x = F, all.y = T)
+
+
+# read atlas
+sce.atlas = readRDS(paste0(root.dir, "data/reducedAtlas/E8_25__E8_5.rds"))
+sce.atlas = sce.atlas[rownames(sce.atlas) %in% genes, sce.atlas$stage == "E8.5"]
+anno.new = readRDS(paste0(root.dir , "data/8_5/source/E8.5_joint_UMAP_df.Rds"))
+anno.new = anno.new[anno.new$type == "Gastrulation atlas" , ]
+celltype.seq = sapply(1:ncol(sce.atlas) , function(i) {
+  idx = which(anno.new$cell == colnames(sce.atlas)[i])
+  if (length(idx) > 0) {
+    return(anno.new$celltype[idx])
+  }
+  else {
+    return(NA)
+  }
+})
+sce.atlas$celltype.seq = celltype.seq
+counts.atlas = logcounts(sce.atlas)
+
+```
+
+
+# Spatial plots
+
+## All embryos / z
+
+Supplementary figures 14-16
+
+```{r spatial-sm-imputed, message=FALSE}
+
+
+getSpatialPlots = function(embryo , z){
+  current.meta = meta[meta$embryo_z == paste0("embryo" ,embryo, "_", z) , ]
+  genes = rownames(counts.sm)
+  # get imputation
+  counts.imputation = readRDS(paste0(root.dir, "data/8_5/stitching/imputation/imputation_seq2atlas_logcounts_embryo", embryo, "z", z, ".rds"))
+  counts.imputation = counts.imputation[rownames(counts.imputation) %in% genes, colnames(counts.imputation) %in% current.meta$uniqueID]
+  
+  plots = lapply(genes, function(gene){
+    print(gene)
+    current.counts.sm = counts.sm[rownames(counts.sm) == gene, colnames(counts.sm) %in% current.meta$uniqueID]
+    current.counts.sm = data.frame(uniqueID = names(current.counts.sm), counts.sm = current.counts.sm)
+    current.counts.imputation = counts.imputation[rownames(counts.imputation) == gene, ]
+    current.counts.imputation = data.frame(uniqueID = names(current.counts.imputation), counts.imp = current.counts.imputation)
+    current.counts = join(current.counts.sm, boundary_polygons, type = "left")
+    current.counts = merge(current.counts, current.counts.imputation, all.x = T)
+    
+    # experimentally measured smFISH
+    current.counts = current.counts[order(current.counts$counts.sm),]
+    p1 = ggplot() + 
+    geom_polygon(data = current.counts, 
+                 aes(x = segmentation_vertices_x_global_affine, y = -segmentation_vertices_y_global_affine, group = uniqueID, fill = counts.sm)) + 
+    scale_fill_gradient2(low = "gray75", high = "black", mid = "cornflowerblue", midpoint = 
+                           ( max(current.counts$counts.sm) + min(current.counts$counts.sm) )/2, name = "") +
+    #scale_fill_gradient2(low = "gray75", high = "black", mid = "cornflowerblue", midpoint = 1, name = "") +
+    guides(fill = F) + labs(x = "", y = "") +
+    #ggtitle(paste0("Measured, ", gene)) +
+    coord_fixed() + 
+    theme_classic() + add_scalebar() +
+    theme(text = element_text(size=25)) + 
+    theme(line = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank())
+    ggsave(filename = paste0(figures.dir, "spatial/smFISH/embryo", embryo, "_", "z", z , "/", gene, ".png"), plot = p1, width = 12, height = 10)
+  
+    # imputed
+    current.counts = current.counts[order(current.counts$counts.imp),]
+    p2.diff_color <- ggplot() + 
+    geom_polygon(data = current.counts, 
+                 aes(x = segmentation_vertices_x_global_affine, y = -segmentation_vertices_y_global_affine, group = uniqueID, fill = counts.imp)) + 
+    scale_fill_gradient2(low = "gray75", high = "black", mid = "#9B6A12", midpoint = ( max(current.counts$counts.imp) + min(current.counts$counts.imp) )/2, name = "") +
+    guides(fill = F) + labs(x = "", y = "") +
+    #ggtitle(paste0("Imputed, ", gene)) +
+    coord_fixed() +  
+    theme_classic() + add_scalebar() +
+    theme(text = element_text(size=25)) + 
+    theme(line = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank())
+    ggsave(filename = paste0(figures.dir, "spatial/imputed_diffColors/embryo", embryo, "_", "z", z , "/", gene, ".png"), plot = p2.diff_color, width = 24, height = 20)
+    
+    # scater plot: comparison between experimentally measured and imputed
+    current.counts = unique(current.counts[, c("uniqueID", "counts.sm", "counts.imp")])
+    p3 <- ggplot(current.counts, aes(x=counts.sm, y=counts.imp)) + 
+      #geom_density_2d() + 
+      geom_point(size = 2, col = "black", alpha = .25) +
+      labs(x = "", y = "") +
+      theme_classic() + 
+      theme(text = element_text(size=33)) 
+    
+    p <- ggarrange(p1,p2.diff_color,p3,nrow=3)
+    ggsave(filename = paste0(figures.dir, "spatial/comparison_diffColors/embryo", embryo, "_", "z", z , "/", gene, ".png"), plot = p, width = 6, height = 11)
+    
+  })
+}
+
+# print
+embryo = c(1:3)
+z = c(2,5)
+stat = lapply(embryo, function(current.embryo){
+  stat.oneEmbryo = lapply(z, function(current.z){
+    out = getSpatialPlots(current.embryo, current.z)
+  })
+})
+
+
+
+
+```
+
+## Embryo2 - FOVs with observed batch effect: get positions for FOV boundaries after affine transformation
+
+```{r spatial-sm-funky-get-FOVs, message=FALSE}
+
+
+fov.info = read.table(paste0( root.dir, "data/8_5/source/fovinfo.csv"), header = TRUE, sep = ",", stringsAsFactors = FALSE, comment.char = "$")
+fov.info$pos = paste0("pos", (fov.info$fov - 1))
+fov.info = fov.info[fov.info$pos %in% paste0("pos", c(39, 40, 44)) , ]
+
+affine_df = data.frame(
+  embryo = c("embryo1", "embryo2","embryo3"),
+  scaleFactor_x = c(31,31,64),
+  scaleFactor_y = c(31,31,64),
+  midpoint_x = tapply(colData(sce)$x_global,colData(sce)$embryo,function(x)mean(range(x))),
+  midpoint_y = tapply(colData(sce)$y_global,colData(sce)$embryo,function(x)mean(range(x))),
+  flip_x = c(FALSE,TRUE,TRUE),
+  flip_y = c(FALSE,FALSE,FALSE), 
+  angle = c(0,-20,-35)
+)
+affine_df = affine_df[affine_df$embryo == "embryo2" , ]
+
+
+affine_x = function(x){
+  x_scaled = x/affine_df$scaleFactor_x
+  x_scaled_centered = x_scaled - affine_df$midpoint_x/affine_df$scaleFactor_x
+  x_scaled_centered_flipped = x_scaled_centered*ifelse(affine_df$flip_x, -1, 1)
+  return(x_scaled_centered_flipped)
+}
+affine_y = function(y){
+  y_scaled = y/affine_df$scaleFactor_y
+  y_scaled_centered = y_scaled - affine_df$midpoint_y/affine_df$scaleFactor_y
+  y_scaled_centered_flipped = y_scaled_centered*ifelse(affine_df$flip_y, -1, 1)
+  return(y_scaled_centered_flipped)
+}
+affine_xy = function(x,y){
+  x = affine_x(x)
+  y = affine_y(y)
+  x_turn = x*cos(affine_df$angle/180) - y*sin(affine_df$angle/180)
+  y_turn = x*sin(affine_df$angle/180) + y*cos(affine_df$angle/180)
+  out = data.frame(x = x_turn , y = y_turn)
+  return(out)
+}
+
+
+fov.info.affine = lapply(1:nrow(fov.info), function(i){
+  bound_1_affine = affine_xy( fov.info$bound_x_1[i] , fov.info$bound_y_1[i])
+  
+  bound_2_affine = affine_xy( fov.info$bound_x_2[i] , fov.info$bound_y_2[i])
+  
+  bound_3_affine = affine_xy( fov.info$bound_x_3[i] , fov.info$bound_y_3[i])
+  
+  bound_4_affine = affine_xy( fov.info$bound_x_4[i] , fov.info$bound_y_4[i])
+  
+  out = data.frame(x = c(bound_1_affine$x, bound_2_affine$x, bound_3_affine$x, bound_4_affine$x) , 
+                   y = c(bound_1_affine$y, bound_2_affine$y, bound_3_affine$y, bound_4_affine$y)
+                   )
+  return(out)
+})
+
+
+
+```
+
+### Plot 
+
+Supplementary Figure 24C.
+
+```{r spatial-sm-funky-plot, message=FALSE}
+
+
+pal = wes_palette("Darjeeling1", 3)
+
+names.ds = data.frame(embryo_z = c("embryo1_2" , "embryo1_5" , "embryo2_2" , "embryo2_5" , "embryo3_2" , "embryo3_5") ,
+                      embryo_z_title = c("Embryo1.1" , "Embryo1.2" , "Embryo2.1" , "Embryo2.2" , "Embryo3.1" , "Embryo3.2")) 
+meta = merge(meta , names.ds)
+
+
+getSpatialPlot = function(gene){
+  print(gene)
+  current.meta = meta[meta$embryo == "embryo2" , ]
+  current.counts.sm = counts.sm[rownames(counts.sm) == gene, colnames(counts.sm) %in% current.meta$uniqueID]
+  current.counts.sm = data.frame(uniqueID = names(current.counts.sm), counts.sm = current.counts.sm)
+  current.counts.sm = join(current.counts.sm, boundary_polygons, type = "left")
+  current.counts.sm = current.counts.sm[!is.na(current.counts.sm$z) , ]
+  current.counts.sm$embryo_z = paste0(current.counts.sm$embryo , "_", current.counts.sm$z)
+  current.counts.sm = join(current.counts.sm , names.ds )
+  p <- ggplot() + 
+    geom_polygon(data = current.counts.sm, 
+                 aes(x = segmentation_vertices_x_global_affine, y = -segmentation_vertices_y_global_affine, group = uniqueID, fill = counts.sm)) + 
+    scale_fill_gradient2(low = "gray75", high = "black", mid = "cornflowerblue", midpoint = ( max(current.counts.sm$counts.sm) + min(current.counts.sm$counts.sm) )/2, name = "") +
+    guides(fill = F) + labs(x = "", y = "") +
+    geom_polygon(data = fov.info.affine[[1]], aes(x = x, y = -y), col= "firebrick4", fill=NA, size = 1.5) + 
+    geom_polygon(data = fov.info.affine[[2]], aes(x = x, y = -y), col="firebrick4", fill=NA, size = 1.5) + 
+    geom_polygon(data = fov.info.affine[[3]], aes(x = x, y = -y), col="firebrick4", fill=NA, size = 1.5) +
+    coord_fixed() + 
+    theme_classic() + add_scalebar() +
+    facet_wrap(~embryo_z_title) +
+    theme(text = element_text(size=25)) +
+    theme(line = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank())
+  p
+  
+  ggsave(filename = paste0(figures.dir, "spatial/smFISH__embryo2_w_FOVs_highlighted/", gene, ".png"), plot = p, width = 12, height = 10)
+  return(p)
+}
+
+genes = c("Alox5ap", "Basp1", "Crabp2", "Enkur", "Fgfbp3", "Gp9", "Grrp1", "Ifng", "Mgst1", "Nkx2-5", "Tmem54", "Fgf8")
+for (gene in genes){
+  p <- getSpatialPlot(gene)
+  print(p)
+}
+
+```
+
+
+# Quantification stat
+
+## Combine various stats
+
+### Load prediction scores (for imputation)
+
+```{r get-gene-score, message=FALSE}
+
+# load gene prediction score
+genes = rownames(counts.sm)
+
+unq.embryo = c(1,2,3)
+unq.z = c(2,5)
+loadGeneScore = function(embryo, z){
+  current.gene.score = readRDS(paste0(root.dir, "data/8_5/stitching/imputation/geneScore/geneScore_imputation_embryo", embryo, "z", z,".rds"))
+  current.gene.score$embryo_z = paste0("embryo", embryo, "_", z)
+  current.gene.score = current.gene.score[current.gene.score$gene %in% genes , ]
+  return(current.gene.score)
+}
+gene.score = lapply(unq.embryo, function(embryo){
+  gene.score.currentEmbryo = lapply(unq.z, function(z){
+    return( loadGeneScore(embryo, z))
+  })
+  gene.score.currentEmbryo = do.call(rbind, gene.score.currentEmbryo)
+  return(gene.score.currentEmbryo)
+})  
+gene.score = do.call(rbind , gene.score)
+
+# correct bad embryos
+gene.score.embryo2_z2_corrected = readRDS(paste0(root.dir, "data/8_5/stitching/imputation/geneScore/geneScore_imputation_embryo2z2_corrected_smFISH.rds"))
+gene.score.embryo2_z5_corrected = readRDS(paste0(root.dir, "data/8_5/stitching/imputation/geneScore/geneScore_imputation_embryo2z5_corrected_smFISH.rds"))
+
+for (i in 1:nrow(gene.score)){
+  if (gene.score$embryo_z[i] == "embryo2_2"){
+    idx = which(gene.score$gene[i] == gene.score.embryo2_z2_corrected$gene)
+    if (length(idx) == 1){
+      gene.score$score.weighted[i] = gene.score.embryo2_z2_corrected$score.weighted[idx]
+      gene.score$score.unweighted[i] = gene.score.embryo2_z2_corrected$score.unweighted[idx]
+    }
+  }
+  else if (gene.score$embryo_z[i] == "embryo2_5"){
+    idx = which(gene.score$gene[i] == gene.score.embryo2_z5_corrected$gene)
+    if (length(idx) == 1){
+      gene.score$score.weighted[i] = gene.score.embryo2_z5_corrected$score.weighted[idx]
+      gene.score$score.unweighted[i] = gene.score.embryo2_z5_corrected$score.unweighted[idx]
+    }
+  }
+}
+
+
+
+```
+
+### Get stat per gene/embryo-z
+
+Load Prediction scores for corresponding genes; 
+
+For imputed and measured: mean logcounts, fraction and total number of cells with non-zero counts. 
+
+```{r get-stat, message=FALSE}
+
+
+genes = rownames(counts.sm)
+genes.2correct = c("Alox5ap", "Basp1", "Crabp2", "Enkur", "Fgfbp3", "Gp9", "Grrp1", "Ifng", "Mgst1", "Nkx2-5", "Tmem54")
+getStat = function(embryo , z){
+  current.meta = meta[meta$embryo_z == paste0("embryo" ,embryo, "_", z) , ]
+  counts.imputation = readRDS(paste0(root.dir, "data/8_5/stitching/imputation/imputation_seq2atlas_logcounts_embryo", embryo, "z", z, ".rds"))
+  counts.imputation = counts.imputation[rownames(counts.imputation) %in% genes, colnames(counts.imputation) %in% current.meta$uniqueID]
+  
+  counts.imputation.all_genes = readRDS(paste0(root.dir, "data/8_5/stitching/imputation/imputation_seq2atlas_logcounts_allGenes_sm.rds"))
+  counts.imputation.all_genes = counts.imputation.all_genes[, colnames(counts.imputation.all_genes) %in% current.meta$uniqueID]
+  
+  if (!embryo == 2){
+    stat.oneEmbryoZ = lapply(genes, function(gene){
+      current.counts.sm = counts.sm[rownames(counts.sm) == gene, colnames(counts.sm) %in% current.meta$uniqueID]
+      current.counts.sm = data.frame(uniqueID = names(current.counts.sm), counts.sm = current.counts.sm)
+      current.counts.imputation = counts.imputation[rownames(counts.imputation) == gene, ]
+      current.counts.imputation = data.frame(uniqueID = names(current.counts.imputation), counts.imp = current.counts.imputation)
+      
+      current.counts.imputation.all_genes = counts.imputation.all_genes[rownames(counts.imputation.all_genes) == gene, ]
+      current.counts.imputation.all_genes = data.frame(uniqueID = names(current.counts.imputation.all_genes), counts.imp.all_genes = current.counts.imputation.all_genes)
+      
+      current.counts = merge(current.counts.sm, current.counts.imputation, all.x = T, all.y = F)
+      current.counts = merge(current.counts, current.counts.imputation.all_genes, all.x = T, all.y = F)
+      
+      out = data.frame(gene = gene, embryo_z = paste0("embryo", embryo, "_", z),
+                       corr = cor(current.counts$counts.sm, current.counts$counts.imp, method = "pearson"),
+                       frac_expressed.sm = mean(current.counts$counts.sm > 0) , 
+                       frac_expressed.imp = mean(current.counts$counts.imp > 0) , 
+                       mean.sm = mean(current.counts$counts.sm),
+                       mean.imp = mean(current.counts$counts.imp),
+                       n_expressed.sm = sum(current.counts$counts.sm > 0),
+                       n_expressed.imp = sum(current.counts$counts.imp > 0)
+                       )
+      out = merge(out , gene.score , by = c("gene", "embryo_z"), all.x = T, all.y = F)
+      return( out )
+    })
+    stat.oneEmbryoZ = do.call(rbind, stat.oneEmbryoZ)
+  }
+  else {
+    stat.oneEmbryoZ = lapply(genes, function(gene){
+      current.counts.sm = counts.sm[rownames(counts.sm) == gene, colnames(counts.sm) %in% current.meta$uniqueID]
+      current.counts.sm = data.frame(uniqueID = names(current.counts.sm), counts.sm = current.counts.sm)
+      current.counts.imputation = counts.imputation[rownames(counts.imputation) == gene, ]
+      current.counts.imputation = data.frame(uniqueID = names(current.counts.imputation), counts.imp = current.counts.imputation)
+      
+      current.counts.imputation.all_genes = counts.imputation.all_genes[rownames(counts.imputation.all_genes) == gene, ]
+      current.counts.imputation.all_genes = data.frame(uniqueID = names(current.counts.imputation.all_genes), counts.imp.all_genes = current.counts.imputation.all_genes)
+      
+      current.counts = merge(current.counts.sm, current.counts.imputation, all.x = T, all.y = F)
+      current.counts = merge(current.counts, current.counts.imputation.all_genes, all.x = T, all.y = F)
+      
+      if ( sum(gene %in% genes.2correct) == 0 ){
+        out = data.frame(gene = gene, embryo_z = paste0("embryo", embryo, "_", z),
+                       corr = cor(current.counts$counts.sm, current.counts$counts.imp, method = "pearson"),
+                       frac_expressed.sm = mean(current.counts$counts.sm > 0) , 
+                       frac_expressed.imp = mean(current.counts$counts.imp > 0) , 
+                       mean.sm = mean(current.counts$counts.sm),
+                       mean.imp = mean(current.counts$counts.imp) ,
+                       n_expressed.sm = sum(current.counts$counts.sm > 0),
+                       n_expressed.imp = sum(current.counts$counts.imp > 0)
+                       )
+        out = merge(out , gene.score , by = c("gene", "embryo_z"), all.x = T, all.y = F)
+        return( out )
+      } else {
+        idx = !current.counts$uniqueID %in% current.meta$uniqueID[current.meta$pos %in% paste0("pos", c(39, 40, 44))]
+        out = data.frame(gene = gene, embryo_z = paste0("embryo", embryo, "_", z),
+                       corr = cor(current.counts$counts.sm[idx], current.counts$counts.imp[idx], method = "pearson"),
+                       frac_expressed.sm = mean(current.counts$counts.sm[idx] > 0) , 
+                       frac_expressed.imp = mean(current.counts$counts.imp[idx] > 0) , 
+                       mean.sm = mean(current.counts$counts.sm[idx]),
+                       mean.imp = mean(current.counts$counts.imp[idx]),
+                       n_expressed.sm = sum(current.counts$counts.sm[idx] > 0),
+                       n_expressed.imp = sum(current.counts$counts.imp[idx] > 0)
+                       )
+        out = merge(out , gene.score , by = c("gene", "embryo_z"), all.x = T, all.y = F)
+        return( out )
+      }
+    })
+    stat.oneEmbryoZ = do.call(rbind, stat.oneEmbryoZ)
+  }
+  return(stat.oneEmbryoZ)
+}
+  
+
+
+# print
+embryo = c(1:3)
+z = c(2,5)
+stat = lapply(embryo, function(current.embryo){
+  stat.oneEmbryo = lapply(z, function(current.z){
+    print(paste0("embryo ", current.embryo, "_", current.z))
+    out = getStat(current.embryo, current.z)
+    return(out)
+  })
+  stat.oneEmbryo = do.call(rbind, stat.oneEmbryo)
+  return(stat.oneEmbryo)
+})
+
+stat = do.call(rbind, stat)
+
+eps = 0.01
+stat$corr[is.na(stat$corr)] = eps
+stat$corr[stat$corr < eps] = eps
+stat$score.weighted[is.na(stat$score.weighted)] = eps
+stat$score.weighted[stat$score.weighted < eps] = eps
+stat$corr.ratio = stat$corr/stat$score.weighted
+
+write.table(stat, file = paste0(root.dir, "data/8_5/stats/corr__smFISH__VS__imputed.tab"), row.names = F, col.names = T, quote = F, sep = "\t")
+
+
+
+```
+
+### Get stat per gene / celltype / embryo-z
+
+For each smFISH gene, get correlations (across celltypes) between mean logcounts/fraction of cells with non-zero counts between experimentally measured data and imputation.
+
+```{r get-stat, message=FALSE}
+
+
+stat.per_ct_atlas = lapply(genes , function(gene){
+  current.df = data.frame(celltype = sce.atlas$celltype.seq , counts = as.numeric(counts.atlas[gene, ]))
+  current.df = current.df[!is.na(current.df$celltype) , ]
+  current.stat = as.data.frame(current.df %>% group_by(celltype) %>% 
+                                 dplyr::summarise(frac_expressed.atlas = mean(counts > 0) , 
+                                                  mean.atlas = mean(counts)))
+  current.stat$gene = gene
+  return(current.stat)  
+})
+stat.per_ct_atlas = do.call(rbind , stat.per_ct_atlas)
+
+
+stat.per_ct_sm = lapply(genes, function(gene){
+  current.counts.sm = counts.sm[rownames(counts.sm) == gene, colnames(counts.sm) %in% meta$uniqueID]
+  current.counts.sm = data.frame(uniqueID = names(current.counts.sm), counts.sm = current.counts.sm)
+  current.counts.sm = merge(current.counts.sm , meta)
+  current.stat = as.data.frame(current.counts.sm %>% group_by(celltype_mapped_refined , embryo_z) %>% 
+                                 dplyr::summarise(frac_expressed.sm = mean(counts.sm > 0) , 
+                                                  mean.sm = mean(counts.sm)))
+  colnames(current.stat)[which(colnames(current.stat) == "celltype_mapped_refined")] = "celltype"
+  current.stat$gene = gene
+  return(current.stat)  
+})
+stat.per_ct_sm = do.call(rbind , stat.per_ct_sm)
+stat.per_ct_sm = merge(stat.per_ct_sm , stat.per_ct_atlas , by = c("gene" , "celltype"))
+
+stat.per_gene.corr_ct = as.data.frame(stat.per_ct_sm %>% group_by(gene , embryo_z) %>% 
+                                        dplyr::summarise(corr.frac_expressed.cts = cor(frac_expressed.sm , frac_expressed.atlas) , 
+                                                         corr.mean.cts = cor(mean.sm , mean.atlas)))
+
+
+
+```
+
+## Plot quantification
+
+### Scater: Prediction VS Performance for smFISh genes
+
+Supplementary figure 13C.
+
+```{r plot-scater-pred-vs-perf, message=FALSE}
+
+
+colors_genes = rep( c("cyan3", "brown", "coral1", "darkblue", "forestgreen", "darkseagreen2", "darkmagenta", "ivory4", "deeppink") , 4)
+shapes_gene = rep(c(21,22,23,24), 9 )
+names(colors_genes) = unique(stat$gene)
+names(shapes_gene) = unique(stat$gene)
+
+
+names.ds = data.frame(embryo_z = c("embryo1_2" , "embryo1_5" , "embryo2_2" , "embryo2_5" , "embryo3_2" , "embryo3_5") ,
+                      embryo_z_title = c("Embryo1.1" , "Embryo1.2" , "Embryo2.1" , "Embryo2.2" , "Embryo3.1" , "Embryo3.2")) 
+stat = merge(stat , names.ds)
+stat = merge(stat , stat.per_gene.corr_ct , by = c("gene" , "embryo_z"))
+
+
+p <- ggplot(stat, aes(x = score.weighted, y = corr)) +
+  geom_point(size = 4, alpha = .75, aes(fill = gene, shape = gene, col = gene)) +
+  scale_fill_manual(values = colors_genes, name = "") + 
+  scale_color_manual(values = colors_genes, name = "") + 
+  scale_shape_manual(values = shapes_gene, name = "") +
+  labs(x = "Prediction", y = "Performance") + 
+  theme(text = element_text(size=16)) +
+  geom_abline(slope = 1, intercept = 0) + 
+  facet_wrap(~embryo_z_title, nrow = 1) +
+  theme_classic() + 
+  theme(text = element_text(size=25))
+p
+ggsave(filename = paste0(figures.dir, "smFISH_comparison/quantification_smFISH_VS_imputed.png"), plot = p, width = 23, height = 8)
+
+
+
+```
+
+## Investigate genes with low performance/prediction
+
+Supplementary figure 13D.
+
+```{r sm-genes-plot-stat, message=FALSE}
+
+
+pal <- wes_palette("FantasticFox1", 6, type = "continuous")
+
+# color by frac-expressed
+genes.expected_well = unique(stat$gene[stat$score.weighted > 0.1])
+genes.expected_well = genes.expected_well[!is.na(genes.expected_well)]
+stat.reduced = stat[stat$gene %in% genes.expected_well , ]
+stat.reduced.per_gene = as.data.frame(stat.reduced %>% group_by(gene) %>%
+                                        dplyr::summarise(median.corr.ratio = median(corr.ratio)))
+stat.reduced.per_gene = stat.reduced.per_gene[order(stat.reduced.per_gene$median.corr.ratio) , ]
+
+stat.reduced$gene = factor(stat.reduced$gene , levels = stat.reduced.per_gene$gene)
+
+p1 <- ggplot(stat.reduced, aes(x = gene, y = corr.ratio )) +
+  geom_boxplot(width=.4) +
+  geom_jitter(alpha = 1, width = .075, size = 3, aes(col = embryo_z_title)) +
+  scale_color_manual(values = pal) +
+  #geom_hline(yintercept = .725 , linetype = "dashed") +
+  theme_classic() + 
+  theme(text = element_text(size=20)) +
+  labs(y = "Performance/Prediction", x = "Gene") + 
+  coord_flip()
+p2 <- ggplot(stat.reduced, aes(x = gene, y = frac_expressed.sm )) +
+  geom_boxplot(width=.4) +
+  geom_jitter(alpha = 1, width = .075, size = 3, aes(col = embryo_z_title)) +
+  scale_color_manual(values = pal) +
+  #geom_hline(yintercept = .725 , linetype = "dashed") +
+  theme_classic() + 
+  theme(text = element_text(size=20)) +
+  labs(y = "Fraction of cells with non-zero counts", x = "Gene") + 
+  coord_flip()
+p3 <- ggplot(stat.reduced, aes(x = gene, y = corr.frac_expressed.cts )) +
+  geom_boxplot(width=.4) +
+  geom_jitter(alpha = 1, width = .075, size = 3, aes(col = embryo_z_title)) +
+  scale_color_manual(values = pal) +
+  #geom_hline(yintercept = .725 , linetype = "dashed") +
+  theme_classic() + 
+  theme(text = element_text(size=20)) +
+  labs(y = "Correlation of CT compositions", x = "Gene") + 
+  coord_flip()
+p = ggarrange(p1,p2,p3, ncol = 3 , common.legend = T)
+p
+ggsave(filename = paste0(figures.dir, "smFISH_comparison/quantification_across_reps.png"), plot = p, width = 20, height = 12)
+
+
+```
+
+
+# Session Info
+
+```{r sessinf}
+
+sessionInfo()
+
+```

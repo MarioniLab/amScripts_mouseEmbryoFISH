@@ -1,0 +1,488 @@
+---
+title: "Virtual dissection of MHB region."
+output:
+  BiocStyle::html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes  
+  html_document:
+    code_folding: hide
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: true
+    theme: united
+---
+
+
+# Load dependencies and source data
+
+```{r load_data, message=FALSE}
+
+library(Matrix)
+library(scran)
+library(BiocParallel)
+library(BiocNeighbors)
+library(igraph)
+library(reshape2)
+library(knitr)
+library(scater)
+library(scales)
+library(biomaRt)
+library(batchelor)
+library(irlba)
+library(batchelor)
+library(tibble)
+library(dplyr)
+library(viridis)
+library(ggridges)
+library(ggpubr)
+library(ggforce)
+library(binr)
+library(tripack)
+library(sp)
+library(rgdal)
+library(maps)
+library(ggrepel)
+library(wesanderson)
+library(plyr)
+library(ggsn)
+
+root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/"
+figures.dir = paste0(root.dir, "figures/imputation/imputation/brain/")
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
+source(paste0(root.dir, "amScripts_mouseEmbryoFISH/visualization_functions.R"))
+
+# load seq
+load_embryo_8.5(dir = "local")
+sce.seq = sce[!rownames(sce) == "Xist", ]
+meta = data.frame(colData(sce.seq))
+# add CT
+meta.CT = readRDS(paste0(root.dir, "data/8_5/source/celltype_annotation_refined.Rds"))
+meta.CT = rownames_to_column(meta.CT, var = "uniqueID")
+meta = merge(meta, meta.CT, all.x = T, all.y = F)
+CTs.2discard = c("Low quality")
+meta = meta[!meta$celltype_mapped_refined %in% CTs.2discard, ]
+meta$embryo_z = paste0(meta$embryo, "_", meta$z)
+
+# for brain panel we work with embryo2-2
+meta = meta[meta$embryo_z == "embryo2_2",]
+sce.seq = sce.seq[, colnames(sce.seq) %in% meta$uniqueID]
+counts.seq = assay(sce.seq, "cpm_wo_xist")
+
+# load imputation for the relevant embryo: embryo2, z=2
+imputation.embryo2_2 = readRDS(paste0(root.dir, "data/8_5/stitching/imputation/imputation_seq2atlas_logcounts_embryo2z2.rds"))
+imputation.embryo2_2 = imputation.embryo2_2[, colnames(imputation.embryo2_2) %in% meta$uniqueID]
+
+# boundary polygons
+boundary_polygons = getSegmentationVerticesDF(colData(sce.seq),
+                                              xname = "segmentation_vertices_x_global_affine",
+                                              yname = "segmentation_vertices_y_global_affine",
+                                              othercols = c("uniqueID", "embryo", "z"))
+boundary_polygons = merge(boundary_polygons, meta[, c("uniqueID", "celltype_mapped_refined")], all.x = F, all.y = T)
+
+
+add_scalebar = function(dist_um = 250, x = 2.75, y = -3.20, ...) {
+  # this is a quantity to add to an existing ggplot
+  
+  # dist_um is the distance for the scalebar in um, default 250um
+  # x and y are the coordinates to place the scalebar
+  # usage: to add to a ggplot object like "g + add_scalebar()"
+  
+  # useful optional argument is box.col = "white"
+  
+  # need to make sure that ggplot of interest doesn't have group aesthetic
+  # defined in the ggplot, but in the geom_polygon itself
+  
+  require(ggsn)
+  add = ggsn::scalebar(location = "bottomright",
+                       dist = dist_um/227.74, dist_unit = "units", 
+                       transform = FALSE,
+                       x.min = x, x.max = x,
+                       y.min = y, y.max = y,
+                       height = 0.2, 
+                       box.fill = "black",
+                       st.size = 0,
+                       inherit.aes = FALSE,
+                       ...)
+  return(add)
+}
+
+
+```
+
+
+# Otx2 & Gbx2 expression - all brain
+
+Region for virtual dissection is selected manually.
+
+Supplementary figures 19 D,E.
+
+```{r Otx2-Gbx2, warning=FALSE}
+
+counts.gbx2 = counts.seq[rownames(counts.seq) == "Gbx2", ]
+counts.gbx2 = data.frame(uniqueID = names(counts.gbx2), counts.gbx2 = counts.gbx2)
+counts.otx2 = counts.seq[rownames(counts.seq) == "Otx2", ]
+counts.otx2 = data.frame(uniqueID = names(counts.otx2), counts.otx2 = counts.otx2)
+current.counts = merge(counts.gbx2, counts.otx2)
+current.counts = join(current.counts, boundary_polygons, type = "right")
+current.counts = current.counts[current.counts$celltype_mapped_refined == "Forebrain/Midbrain/Hindbrain" , ]
+
+zoomedRegion.coords = data.frame(x1 = -0.5 , x2 = 1.15 , y1 = 2 , y2 = 3.15)
+
+# Gbx2
+current.counts = current.counts[order(current.counts$counts.gbx2),]
+p1 <- ggplot() + 
+  geom_polygon(data = current.counts, 
+               aes(x = segmentation_vertices_x_global_affine, y = -segmentation_vertices_y_global_affine, group = uniqueID, fill = counts.gbx2)) + 
+  scale_fill_gradient2(low = "gray75", high = "black", mid = "cornflowerblue", midpoint = (max(current.counts$counts.gbx2) + min(current.counts$counts.gbx2))/2, name = "") + guides(fill = F) +
+  ylim(c(0,3.4)) +
+  ggtitle("Gbx2") +
+  geom_rect(data = zoomedRegion.coords, mapping=aes(xmin=x1, xmax=x2, ymin=y1, ymax=y2), color="black", alpha=0) + 
+  labs(x="",y="") +
+  coord_fixed() + 
+  theme_classic() + 
+  add_scalebar(x = 2.75 , y = 0) + 
+  theme(text = element_text(size=23)) +  
+  theme(line = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank())
+p1
+
+
+# Otx2
+current.counts = current.counts[order(current.counts$counts.otx2),]
+p2 <- ggplot() + 
+  geom_polygon(data = current.counts, 
+               aes(x = segmentation_vertices_x_global_affine, y = -segmentation_vertices_y_global_affine, group = uniqueID, fill = counts.otx2)) + 
+  scale_fill_gradient2(low = "gray75", high = "black", mid = "cornflowerblue", midpoint = (max(current.counts$counts.otx2) + min(current.counts$counts.otx2))/2, name = "") + guides(fill = F) +
+  ylim(c(0,3.4)) +
+  ggtitle("Otx2") +
+  geom_rect(data = zoomedRegion.coords, mapping=aes(xmin=x1, xmax=x2, ymin=y1, ymax=y2), color="black", alpha=0) + 
+  labs(x="",y="") +
+  coord_fixed() + 
+  theme_classic() + 
+  add_scalebar(x = 2.75 , y = 0) + 
+  theme(text = element_text(size=23)) +  
+  theme(line = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank())
+
+  
+p <- ggarrange(p1,p2,ncol=2)
+p
+ggsave(filename = paste0(figures.dir, "spatial_otx2_gbx2.png"), plot = p, width = 8, height = 4)
+
+
+
+
+```
+
+## Defining MHB 
+
+Midbrain-hindbrain border is selected manually based on expression of Otx2 and Gbx2.
+
+Supplementary figure 19 H.
+
+```{r get-mhb, warning=FALSE}
+
+
+meta.section = meta[meta$x_global_affine > -0.5 & meta$x_global_affine < 1.15 &
+                                          -1*meta$y_global_affine > 2 & -1*meta$y_global_affine < 3.15 &
+                                          meta$celltype_mapped_refined == "Forebrain/Midbrain/Hindbrain", ]
+meta.section$y_global_affine_rev = -1*meta.section$y_global_affine
+
+
+# dissection region (manually selected)
+anchor.points.x = c(0.12, 0.35, 0.42, 0.45, 0.45, -0.51, -1, -1, -0.51, 0)
+anchor.points.y = c(3.05, 2.7, 2.5, 2.25, 1.99, 1.99, 2, 3.26, 3.26, 3.26)
+anchor.points = data.frame(x_global_affine = anchor.points.x, y_global_affine_rev = anchor.points.y)
+
+
+group_colours = c("Brain" = "firebrick1", "0" = "gray80", "anchor" = "black")
+p <- ggplot() +
+  geom_point(data = meta.section, aes(x = x_global_affine, y = -y_global_affine) , size = 2.5, alpha = .75) +
+  geom_polygon(data = anchor.points, aes(x = x_global_affine, y = y_global_affine_rev), col = "firebrick2", fill = NA, size = 2) +
+  theme(text = element_text(size=10)) + 
+  scale_x_continuous(breaks = seq(-2.5, 1, by = 0.5)) + 
+  scale_y_continuous(breaks = seq(-.5, 3, by = 0.5)) 
+p
+
+
+# split in M and H
+subgroup = sapply(1:nrow(meta.section), function(i){
+  x = meta.section$x_global_affine[i]
+  y = meta.section$y_global_affine_rev[i]
+  if (point.in.polygon(x, y, anchor.points$x_global_affine, anchor.points$y_global_affine_rev) == 1){
+    return("Hindbrain")
+  } else if ( x > 0.9 & y < 2.13 ){
+    return("Midbrain")
+  } else {
+    return("Midbrain")
+  }
+})
+meta.section$subgroup = subgroup
+
+
+meta.section.boundaries = join(boundary_polygons, meta.section[,c("uniqueID", "subgroup")], type = "right")
+subgroup_colours = c("Midbrain" = "coral", "Hindbrain" = "darkorchid4")
+p <- ggplot() + 
+  geom_polygon(data = meta.section.boundaries,
+               aes(x = segmentation_vertices_x_global_affine, y = -segmentation_vertices_y_global_affine, group = uniqueID, fill = subgroup)) + labs(x = "", y = "") + 
+  scale_fill_manual(values = subgroup_colours, name = "Region") + 
+  coord_fixed() +
+  theme_classic() +
+  add_scalebar(x = 1.75 , y = 1.75) +
+  theme(text = element_text(size=23)) + 
+  theme(line = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank())
+p
+ggsave(filename = paste0(figures.dir, "virtual_dissection__MHB.png"), plot = p, width = 7, height = 4)
+
+
+
+```
+
+# Otx2 - Gbx2 -- zoomed
+
+Supplementary figure 19 F,G; I.
+
+```{r Otx2-Gbx2-zoomed-in, warning=FALSE}
+
+
+counts.gbx2 = counts.seq[rownames(counts.seq) == "Gbx2", ]
+counts.gbx2 = data.frame(uniqueID = names(counts.gbx2), counts.gbx2 = counts.gbx2)
+counts.otx2 = counts.seq[rownames(counts.seq) == "Otx2", ]
+counts.otx2 = data.frame(uniqueID = names(counts.otx2), counts.otx2 = counts.otx2)
+current.counts = merge(counts.gbx2, counts.otx2)
+current.counts = join(current.counts, boundary_polygons, type = "right")
+current.counts = join(current.counts , meta.section[, c("uniqueID", "x_global_affine", "y_global_affine")] , type = "right")
+
+
+anchor.points.x = c(0.12, 0.35, 0.42, 0.45, 0.45, 0)
+anchor.points.y = c(3.05, 2.7, 2.5, 2.25, 1.99, 3.26)
+anchor.points = data.frame(x_global_affine = anchor.points.x, y_global_affine_rev = anchor.points.y)
+
+
+# spatial
+current.counts = current.counts[order(current.counts$counts.gbx2),]
+p1 <- ggplot() + 
+  geom_polygon(data = current.counts,
+           aes(x = segmentation_vertices_x_global_affine, y = -segmentation_vertices_y_global_affine, group = uniqueID, fill = counts.gbx2)) + 
+  scale_fill_gradient2(low = "gray75", high = "black", mid = "cornflowerblue", midpoint = (max(current.counts$counts.gbx2) + min(current.counts$counts.gbx2))/2, name = "") + guides(fill = F) +
+  labs(x = "x", y = "y") +
+  ggtitle("Gbx2") +
+  labs(x="",y="") +
+  coord_fixed() +
+  geom_line(data = anchor.points, aes(x = x_global_affine, y = y_global_affine_rev), color = "firebrick4", size = 1.5) +
+  theme_classic() + add_scalebar(x = 1.75 , y = 1.75) + 
+  theme(text = element_text(size=23)) +  
+  theme(line = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank()) 
+  
+  
+current.counts = current.counts[order(current.counts$counts.otx2),]
+p2 <-  ggplot() + 
+  geom_polygon(data = current.counts,
+           aes(x = segmentation_vertices_x_global_affine, y = -segmentation_vertices_y_global_affine, group = uniqueID, fill = counts.otx2)) + 
+  scale_fill_gradient2(low = "gray75", high = "black", mid = "cornflowerblue", midpoint = (max(current.counts$counts.otx2) + min(current.counts$counts.otx2))/2, name = "") + guides(fill = F) +
+  labs(x = "x", y = "y") +
+  ggtitle("Otx2") +
+  labs(x="",y="") +
+  coord_fixed() +
+  geom_line(data = anchor.points, aes(x = x_global_affine, y = y_global_affine_rev), color = "firebrick4", size = 1.5) +
+  theme_classic() + add_scalebar(x = 1.75 , y = 1.75) +
+  theme(text = element_text(size=23)) +  
+  theme(line = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank())
+p <- ggarrange(p1,p2, ncol=2)  
+p
+ggsave(filename = paste0(figures.dir, "spatial_otx2_gbx2__zoomed.png"), plot = p, width = 8, height = 4)
+
+
+
+# violins 
+current.counts.grouped <- as.data.frame( current.counts %>% group_by(uniqueID) %>% 
+                                  dplyr::summarise(counts.gbx2 = mean(counts.gbx2) , 
+                                                   counts.otx2 = mean(counts.otx2) ))
+current.counts.grouped = merge(current.counts.grouped, meta.section[, c("uniqueID", "subgroup")])
+subgroup_colours = c("Midbrain" = "coral", "Hindbrain" = "darkorchid4")
+
+p1 <- ggplot(current.counts.grouped, aes(x = subgroup , y = counts.gbx2, fill = subgroup)) + 
+  geom_violin(aes(fill = subgroup), alpha = .5, color = "transparent") + 
+  scale_fill_manual(values = subgroup_colours,  name = "") +
+  geom_boxplot(outlier.alpha = 0, coef = 0, color = "gray40", width = 0.1) +
+  labs(x = "", y = "Gbx2 counts") + 
+  theme_classic() + theme(text = element_text(size=16)) + theme(axis.text.x = element_blank()) 
+p2 <- ggplot(current.counts.grouped, aes(x = subgroup , y = counts.otx2, fill = subgroup)) + 
+  geom_violin(aes(fill = subgroup), alpha = .5, color = "transparent") + 
+  scale_fill_manual(values = subgroup_colours, name = "") +
+  geom_boxplot(outlier.alpha = 0, coef = 0, color = "gray40", width = 0.1) +
+  labs(x = "", y = "Otx2 counts") + 
+  theme_classic() + theme(text = element_text(size=16)) + theme(axis.text.x = element_blank()) 
+  
+  
+p <- ggarrange(p1,p2, common.legend = T, ncol=2)
+p
+ggsave(filename = paste0(figures.dir, "violin__Otx2_Gbx2.png"), plot = p, width = 8, height = 4)
+
+
+
+```
+
+## DE - between M and H
+
+Figure 3E.
+
+```{r DE, warning=FALSE}
+
+
+library(wesanderson)
+pal = wes_palette("Darjeeling1" , 2)
+FDR.thresh = 0.05
+lfc.thresh = .2
+imputation.embryo2_2_section = imputation.embryo2_2[, colnames(imputation.embryo2_2) %in% meta.section$uniqueID]
+sce.section = SingleCellExperiment(list(logcounts=imputation.embryo2_2_section))
+
+de.section = findMarkers(sce.section, meta.section$subgroup, lfc = lfc.thresh)
+de.section = as.data.frame(de.section[[2]])
+de.section = rownames_to_column(de.section, var = "Gene")
+de.section = de.section[, c("Gene", "FDR", "logFC.Hindbrain")]
+colnames(de.section) = c("Gene", "padj", "log2FoldChange")
+
+# add average expression
+counts.section = logcounts(sce.section)
+counts.mean.section = apply(counts.section, 1, mean)
+counts.mean.section = data.frame(Gene = names(counts.mean.section), baseMean = counts.mean.section)
+de.section = merge(de.section, counts.mean.section, by = "Gene")
+
+de.section.sign = de.section[de.section$padj <= FDR.thresh , ]
+write.table(de.section.sign, file = paste0(root.dir, "data/sup_tables/deGenes_MHB.tab"), row.names = F, col.names = T, quote = F, sep = "\t")
+
+
+significance = sapply(1:nrow(de.section), function(i){
+  if (de.section$padj[i] < FDR.thresh & de.section$log2FoldChange[i] > 0){
+    return("Up")
+  } else if(de.section$padj[i] < FDR.thresh & de.section$log2FoldChange[i] < 0 ){
+    return("Down")
+  } else {
+    return("0")
+  }
+})
+de.section$significance = significance              
+de.section$significance = factor(de.section$significance)
+de.section = de.section[order(de.section$significance) , ]
+pal = wes_palette("Darjeeling1" , 2)      
+subgroup_colours = c("Midbrain" = "coral", "Hindbrain" = "darkorchid4", "Forebrain" = "darkslategray3")
+significance_colors = c("Up" = "coral", "Down" = "darkorchid4", "0" = "gray75")                     
+                    
+
+lfc.thresh_strong = 0.5 
+p <- ggplot(de.section, aes(x = baseMean, y = log2FoldChange, color = significance)) + 
+  geom_point() + 
+  theme_classic() +
+  scale_colour_manual(values = significance_colors) +
+  theme(legend.position = "none")+
+  geom_hline(yintercept = 0, col = "black", linetype = "dotted", size = 1) +
+  geom_text_repel(data=subset(de.section,Gene %in% de.section$Gene[de.section$significance == "Up" & de.section$log2FoldChange > lfc.thresh_strong]),
+                     aes(baseMean, log2FoldChange, label = Gene),size = 4, color="black") + 
+  geom_text_repel(data=subset(de.section,Gene %in% c("Gbx2", de.section$Gene[de.section$significance == "Down" & de.section$log2FoldChange < -1*lfc.thresh_strong])),
+                     aes(baseMean, log2FoldChange, label = Gene),size = 4, color="black") +
+  labs(x = "average logcounts", y = "log2 Fold Change") + 
+  theme(text = element_text(size=16)) + 
+  ggtitle(paste0("Up: ", sum(de.section$significance == "Up"), ", Down: ", sum(de.section$significance == "Down")))
+p
+ggsave(filename = paste0(figures.dir, "de_MA_V3.png"), plot = p, width = 7, height = 4)
+
+
+```
+
+
+# BULK
+
+## Spatial -- DE genes
+
+```{r spatial-DE, warning=FALSE}
+
+
+# Section
+getSpatialPlot = function(gene, subgroup){
+  current.counts.imp = imputation.embryo2_2[rownames(imputation.embryo2_2) == gene, ]
+  current.counts.imp = data.frame(uniqueID = names(current.counts.imp), counts.imp = current.counts.imp)
+  current.counts = merge(current.counts.imp, meta.section.boundaries, all.y = T, all.x = F)
+  
+  # plot
+  current.counts = current.counts[order(current.counts$counts.imp),]
+  p <- ggplot(current.counts,
+           aes(x = segmentation_vertices_x_global_affine, y = -segmentation_vertices_y_global_affine, group = uniqueID, fill = counts.imp)) + 
+  geom_polygon() + 
+  scale_fill_gradient2(low = "gray75", high = "black", mid = "cornflowerblue", midpoint = ( max(current.counts$counts.imp) + min(current.counts$counts.imp))/2, name = "") +
+  guides(fill = F) +
+  labs(x = "", y = "") +
+  #ggtitle(gene) +
+  coord_fixed() + 
+  theme_classic() +
+  theme(text = element_text(size=23)) + 
+  theme(line = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank())
+  ggsave(filename = paste0(figures.dir, "spatial/", subgroup, "/section/", gene, ".png"), plot = p, width = 5, height = 4)
+  return(p)
+}
+
+genes.hindbrain = de.section$Gene[de.section$logFC.Hindbrain < -0.25]
+for (current.gene in genes.hindbrain){
+  getSpatialPlot(current.gene, "hindbrain")
+}
+genes.midbrain = de.section$Gene[de.section$logFC.Hindbrain > 0.25]
+for (current.gene in genes.midbrain){
+  getSpatialPlot(current.gene, "midbrain")
+}
+
+
+# Whole brain
+getSpatialPlot = function(gene, subgroup){
+  current.counts.imp = imputation.embryo2_2[rownames(imputation.embryo2_2) == gene, ]
+  current.counts.imp = data.frame(uniqueID = names(current.counts.imp), counts.imp = current.counts.imp)
+  current.counts = merge(current.counts.imp, boundary_polygons, all.y = T, all.x = F)
+  current.counts = current.counts[current.counts$celltype_mapped_refined == "Forebrain/Midbrain/Hindbrain",]
+  current.counts$x1 = -0.5
+  current.counts$x2 = 1.15
+  current.counts$y1 = 2
+  current.counts$y2 = 3.15
+  # plot
+  current.counts = current.counts[order(current.counts$counts.imp),]
+  p <- ggplot(current.counts,
+           aes(x = segmentation_vertices_x_global_affine, y = -segmentation_vertices_y_global_affine, group = uniqueID, fill = counts.imp)) + 
+  geom_polygon() + 
+  scale_fill_gradient2(low = "gray75", high = "black", mid = "cornflowerblue", midpoint = ( max(current.counts$counts.imp) + min(current.counts$counts.imp))/2, name = "") +
+  guides(fill = F) +
+  labs(x = "", y = "") +
+  geom_rect(mapping=aes(xmin=x1, xmax=x2, ymin=y1, ymax=y2), color="black", alpha=0) + 
+  #ggtitle(gene) +
+  coord_fixed() + 
+  theme_classic() +
+  theme(text = element_text(size=23)) + 
+  ylim(c(0,3.4)) + 
+  theme(line = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank())
+  ggsave(filename = paste0(figures.dir, "spatial/", subgroup, "/wholeBrain/", gene, ".png"), plot = p, width = 5, height = 4)
+  return(p)
+}
+
+genes.hindbrain = de.section$Gene[de.section$log2FoldChange < -0.25]
+for (current.gene in genes.hindbrain){
+  getSpatialPlot(current.gene, "hindbrain")
+}
+genes.midbrain = de.section$Gene[de.section$log2FoldChange > 0.25]
+for (current.gene in genes.midbrain){
+  getSpatialPlot(current.gene, "midbrain")
+}
+
+
+
+
+
+
+
+
+
+```
+
+#Session Info
+
+```{r sessinf}
+
+sessionInfo()
+
+```
