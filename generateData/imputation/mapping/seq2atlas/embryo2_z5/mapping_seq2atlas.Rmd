@@ -1,5 +1,5 @@
 ---
-title: "Mapping seq2atlas - oneOut."
+title: "Mapping seq2atlas - leave one out startegy."
 output:
   BiocStyle::html_document:
     code_folding: hide
@@ -14,11 +14,7 @@ output:
     theme: united
 ---
 
-Settings:
-
-nPC = 100
-
-nn = 25
+Embryo 2.2
 
 # Load dependencies and source data
 
@@ -47,13 +43,15 @@ library(dplyr)
 root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
 source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
 
+embryo = "embryo2"
+z = 5
+
 load_embryo_8.5(dir = "cluster")
+#load_embryo_8.5(dir = "local")
 sce.seq = sce[!rownames(sce) == "Xist",]
-idx = meta$embryo == "embryo2" & meta$z == 5
+idx = meta$embryo == embryo & meta$z == z
 sce.seq = sce.seq[,colnames(sce.seq) %in% meta$uniqueID[idx]]
 meta = meta[idx,]
-assay(sce.seq, "cosineNorm_area") <- cosineNorm(assay(sce.seq, "logcounts_area"))
-#assay(sce.seq, "cpm") <- logcounts(scater::logNormCounts(sce.seq, size_factors = sce.seq$total))
 assay(sce.seq, "cosineNorm_cpm") <- cosineNorm(assay(sce.seq, "cpm_wo_xist"))
 
 # load atlas 
@@ -66,9 +64,11 @@ sce.seq = sce.seq[order(rownames(sce.seq)),]
 sce.atlas = sce.atlas[order(rownames(sce.atlas)),]
 
 # join
-sce.joint.area = cbind(assay(sce.seq, "cosineNorm_area"), assay(sce.atlas, "cosineNorm_seqGenes"))
 sce.joint.libsize = cbind(assay(sce.seq, "cosineNorm_cpm"), assay(sce.atlas, "cosineNorm_seqGenes"))
 batchFactor = factor(c(as.character(sce.seq$embryo_pos_z), as.character(sce.atlas$sample)))
+
+tab = table(batchFactor)
+
 
 ```
 
@@ -94,23 +94,8 @@ mapping = bplapply(genes, function(current.gene){
 }, BPPARAM = mcparam)
 mapping = do.call(rbind, mapping )
 colnames(mapping) = colnames(sce.seq)
-saveRDS(mapping, file =  paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo2z5_libsize.rds"))
+saveRDS(mapping, file =  paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_" , embryo, "z" , z , "_libsize.rds"))
 
-
-mapping = bplapply(genes, function(current.gene){
-  current.sce.joint = sce.joint.area[!rownames(sce.joint.area) == current.gene, ]
-  mbpca = multiBatchPCA(current.sce.joint, batch = batchFactor, d = nPC)
-  out = do.call(reducedMNN, mbpca)
-  joint.pca = out$corrected
-  current.knns = queryKNN( joint.pca[colnames(sce.atlas),], joint.pca[colnames(sce.seq),], k = n.neigh, 
-                           get.index = TRUE, get.distance = FALSE)
-  cells.mapped = apply(current.knns$index, 1, function(x) colnames(sce.atlas)[x])
-  rownames(cells.mapped) = paste0(current.gene, "_", c(1:n.neigh))
-  return(cells.mapped)
-}, BPPARAM = mcparam)
-mapping = do.call(rbind, mapping )
-colnames(mapping) = colnames(sce.seq)
-saveRDS(mapping, file =  paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo2z5_area.rds"))
 
 
 ```

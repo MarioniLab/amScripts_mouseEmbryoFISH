@@ -1,5 +1,5 @@
 ---
-title: "Mapping seq2atlas - oneOut."
+title: "Mapping atlas2atlas - leave one out."
 output:
   BiocStyle::html_document:
     code_folding: hide
@@ -14,11 +14,6 @@ output:
     theme: united
 ---
 
-Settings:
-
-nPC = 100
-
-nn = 25
 
 # Load dependencies and source data
 
@@ -81,7 +76,6 @@ mapping = bplapply(genes, function(current.gene){
   out = do.call(reducedMNN, mbpca)
   atlas.pca = out$corrected
   mapping.currentFeatures = lapply(unq.samples, function(sample){
-    print(sample)
     current.knns = queryKNN( atlas.pca[colnames(sce.atlas[, !sce.atlas$sample == sample]),], 
                              atlas.pca[colnames(sce.atlas[, sce.atlas$sample == sample]),], k = n.neigh, 
                            get.index = TRUE, get.distance = FALSE)
