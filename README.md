@@ -28,7 +28,7 @@ f.  `.\analysis\comparison_w_smFISH\` contains script to compare final imputatio
 
 
 2. Midbrain-Hindbrain border analysis: 
-3. 
+
 a. `.\analysis\MHB\` contains script to virtually dissect MHB region and perform differential expression analysis.
 
 
