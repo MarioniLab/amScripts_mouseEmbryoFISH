@@ -12,7 +12,7 @@ GitHub folder containing scripts to
 `.\visualization_functions.R\` contains color codes for celltypes.
 
 
-1. Imputation for Spatial embryos:
+*1. Imputation for Spatial embryos:*
 
 a. `.\generateData\imputation\mapping\` contains scripts to get mapping between seqFISH and scRNA-seq; scRNA-seq onto itself.
 
