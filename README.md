@@ -8,16 +8,19 @@ GitHub folder containing scripts to
 `Scripts:`
 
 `.\core_functions.R\` contains functions that are frequently used throughout other pipleines.
+
 `.\visualization_functions.R\` contains color codes for celltypes.
 
 
 1. Imputation for Spatial embryos:
 1.1. `.\generateData\imputation\mapping\` contains scripts to get mapping between seqFISH and scRNA-seq; scRNA-seq onto itself.
+
 1.2. `.\generateData\imputation\performance\` contains scripts to get intermediate imputations (for each seqFISH gene) and accordingly intermediate prediction scores.
+
 1.3. `.\generateData\imputation\imputation\` contains scripts to get final imputations and prediction scores for each gene / embryo / z-slice.
-1.4. `.\analysis\perfromance_intermediate_imputation\` contains script to analyse the intermediate imputations and comapre them against experimentally measured seqFISH data.
-1.5. `.\analysis\imputation_gene_prediction\` contains script to combine prediction scores for each gene / embryo/ z-slice for the Supplementary table.
-1.6.  `.\analysis\comparison_w_smFISH\` contains script to compare final imputations across independent experimental validation (smFISH).
+6.4. `.\analysis\perfromance_intermediate_imputation\` contains script to analyse the intermediate imputations and comapre them against experimentally measured seqFISH data.
+7.5. `.\analysis\imputation_gene_prediction\` contains script to combine prediction scores for each gene / embryo/ z-slice for the Supplementary table.
+8.6.  `.\analysis\comparison_w_smFISH\` contains script to compare final imputations across independent experimental validation (smFISH).
 
 2. Midbrain-Hindbrain border analysis: 
 2.1. `.\analysis\MHB\` contains script to virtually dissect MHB region and perform differential expression analysis.
