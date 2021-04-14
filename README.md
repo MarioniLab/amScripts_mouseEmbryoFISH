@@ -5,7 +5,8 @@ GitHub folder containing scripts to
 2) Part of MHB analysis (virtual dissection of MHB and differential expression between Midbrain and Hindbrain regions).
 3) Get intensity thresholds for smFISH genes and get counts matrices for smFISh genes.
 
-```Scripts:
+```
+Scripts:
 
 `.\core_functions.R\` contains functions that are frequently used throughout other pipleines.
 
