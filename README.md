@@ -11,6 +11,7 @@ GitHub folder containing scripts to
 
 `.\visualization_functions.R\` contains color codes for celltypes.
 
+---
 
 **1. Imputation for Spatial embryos:**
 
@@ -26,13 +27,13 @@ e. `.\analysis\imputation_gene_prediction\` contains script to combine predictio
 
 f.  `.\analysis\comparison_w_smFISH\` contains script to compare final imputations across independent experimental validation (smFISH).
 
-
+---
 
 **2. Midbrain-Hindbrain border analysis:**
 
 a. `.\analysis\MHB\` contains script to virtually dissect MHB region and perform differential expression analysis.
 
-
+---
 
 **3. smFISH data:**
 
@@ -42,3 +43,4 @@ b. Based on predicted intensity thresholds, the counts matrix was retrieved usin
 
 c. `.\generateData\sce_smFISH_genes\` contains script to generate SingleCellExperiment object from counts matrix.
 
+---
