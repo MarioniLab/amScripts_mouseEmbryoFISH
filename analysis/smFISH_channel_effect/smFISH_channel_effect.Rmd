@@ -52,22 +52,22 @@ library(wesanderson)
 set.seed(32)
 
 
-root.dir = "/Users/alsu/Develop/spatial/mouse_embryo/amScripts_mouseEmbryoFISH/analysis/smFISH__countDots/"
+data.dir = "/Users/alsu/Develop/spatial/mouse_embryo/data/8_5/smFISH_thresholds/"
 figures.dir = "/Users/alsu/Develop/spatial/mouse_embryo/figures/smFISH__dotsAutoDetect/"
 
 # load data 
-manual_thresh.embryo_12 = read.table(paste0( root.dir, "manual_threshold/embryo12.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
+manual_thresh.embryo_12 = read.table(paste0( data.dir, "manual_threshold/embryo12.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
 manual_thresh.embryo_12$gene = paste0(manual_thresh.embryo_12$channelLabel, "_", manual_thresh.embryo_12$folderLabel)
 manual_thresh.embryo_12$id = paste0(manual_thresh.embryo_12$gene, "_", manual_thresh.embryo_12$position)
 
 
-manual_thresh.embryo_3 = read.table(paste0( root.dir, "manual_threshold/embryo3.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
+manual_thresh.embryo_3 = read.table(paste0( data.dir, "manual_threshold/embryo3.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
 manual_thresh.embryo_3$gene = paste0(manual_thresh.embryo_3$channelLabel, "_", manual_thresh.embryo_3$folderLabel)
 manual_thresh.embryo_3$id = paste0(manual_thresh.embryo_3$gene, "_", manual_thresh.embryo_3$position)
 
 
 # channels that are affected in the first experiment: thresholds for these FOVs were re-calculated again
-manual_thresh.embryo_12_weird = read.table(paste0( root.dir, "manual_threshold/embryo12_channel_1_pos_39_40_43_44.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
+manual_thresh.embryo_12_weird = read.table(paste0( data.dir, "manual_threshold/embryo12_channel_1_pos_39_40_43_44.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
 manual_thresh.embryo_12_weird$gene = paste0(manual_thresh.embryo_12_weird$channelLabel, "_", manual_thresh.embryo_12_weird$folderLabel)
 manual_thresh.embryo_12_weird$id = paste0(manual_thresh.embryo_12_weird$gene, "_", manual_thresh.embryo_12_weird$position)
 
@@ -145,7 +145,7 @@ stat.batch_1 = lapply(unq.positions, function(position){
   return(stat.position)
 })
 stat.batch_1 = do.call(rbind, stat.batch_1)
-write.table(stat.batch_1 , file = paste0(root.dir, "mean_prediction_embryo12.tab"), row.names = F, col.names = T, sep = "\t") 
+write.table(stat.batch_1 , file = paste0(data.dir, "mean_prediction_embryo12.tab"), row.names = F, col.names = T, sep = "\t") 
 
 
 # embryo3
@@ -170,7 +170,7 @@ stat.batch_2 = lapply(unq.positions, function(position){
   return(stat.position)
 })
 stat.batch_2 = do.call(rbind, stat.batch_2)
-write.table(stat.batch_2 , file = paste0(root.dir, "mean_prediction_embryo3.tab"), row.names = F, col.names = T, sep = "\t") 
+write.table(stat.batch_2 , file = paste0(data.dir, "mean_prediction_embryo3.tab"), row.names = F, col.names = T, sep = "\t") 
 
 
 
