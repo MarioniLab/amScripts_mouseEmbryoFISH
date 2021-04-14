@@ -1,2 +1,29 @@
 # AMscripts_mouseEmbryoFISH
-scripts regarding FISH data of gastrulating mouse embryo (amissarova)
+
+GitHub folder containing scripts to 
+1) Generate data for imputation for SpatialEmbryos and analyze the performance.
+2) Part of MHB analysis (virtual dissection of MHB and differential expression between Midbrain and Hindbrain regions).
+3) Get intensity thresholds for smFISH genes and get counts matrices for smFISh genes.
+
+`Scripts:`
+
+`.\core_functions.R\` contains functions that are frequently used throughout other pipleines.
+`.\visualization_functions.R\` contains color codes for celltypes.
+
+
+1. Imputation for Spatial embryos:
+1.1. `.\generateData\imputation\mapping\` contains scripts to get mapping between seqFISH and scRNA-seq; scRNA-seq onto itself.
+1.2. `.\generateData\imputation\performance\` contains scripts to get intermediate imputations (for each seqFISH gene) and accordingly intermediate prediction scores.
+1.3. `.\generateData\imputation\imputation\` contains scripts to get final imputations and prediction scores for each gene / embryo / z-slice.
+1.4. `.\analysis\perfromance_intermediate_imputation\` contains script to analyse the intermediate imputations and comapre them against experimentally measured seqFISH data.
+1.5. `.\analysis\imputation_gene_prediction\` contains script to combine prediction scores for each gene / embryo/ z-slice for the Supplementary table.
+1.6.  `.\analysis\comparison_w_smFISH\` contains script to compare final imputations across independent experimental validation (smFISH).
+
+2. Midbrain-Hindbrain border analysis: 
+2.1. `.\analysis\MHB\` contains script to virtually dissect MHB region and perform differential expression analysis.
+
+3. smFISH data:
+3.1. `.\analysis\smFISH_channel_effect\` contains script to predict intensity thresholds for each gene (that was probed for smFISH)/ field of view.
+3.2. Based on predicted intensity thresholds, the counts matrix was retrieved using custom MATLAB script (in the same manner that for genes probed for the main experiment, availbale upon request).
+3.3. `.\generateData\sce_smFISH_genes\` contains script to generate SingleCellExperiment object from counts matrix.
+
