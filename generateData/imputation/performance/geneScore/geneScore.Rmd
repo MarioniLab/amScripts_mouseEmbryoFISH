@@ -1,5 +1,5 @@
 ---
-title: "Gene score - performance"
+title: "Intermediate gene scores - Pearson correlation between intermediate imputations (for each seqFISh gene) and measured experimentally."
 output:
   BiocStyle::html_document:
     code_folding: hide
@@ -57,7 +57,6 @@ meta = data.frame( colData(sce.seq) )
 meta.CT = readRDS(paste0(root.dir, "data/8_5/source/celltype_annotation_refined.Rds"))
 meta.CT = rownames_to_column(meta.CT, var = "uniqueID")
 meta = merge(meta, meta.CT, all.x = T, all.y = F)
-#CTs.2discard = c("Erythroid", "ExE endoderm", "Blood progenitors", "Low quality")
 CTs.2discard = c("Low quality")
 meta = meta[!meta$celltype_mapped_refined %in% CTs.2discard, ]
 meta$embryo_z = paste0(meta$embryo, "_", meta$z)
@@ -65,13 +64,12 @@ sce.seq = sce.seq[, colnames(sce.seq) %in% meta$uniqueID ]
 
 
 # load mappings
-mapping.embryo1z2 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo1z2_libsize.rds"))
-mapping.embryo1z5 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo1z5_libsize.rds"))
-mapping.embryo2z2 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo2z2_libsize.rds"))
-mapping.embryo2z5 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo2z5_libsize.rds"))
-mapping.embryo3z2 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo3z2_libsize.rds"))
-mapping.embryo3z5 = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo3z5_libsize.rds"))
-mapping = cbind(mapping.embryo1z2, mapping.embryo1z5, mapping.embryo2z2, mapping.embryo2z5, mapping.embryo3z2, mapping.embryo3z5)
+ids = paste0("embryo" , c("1z2" , "1z5" , "2z2" , "2z5" , "3z2" , "3z5"))
+mapping = lapply(ids , function(id){
+  current.mapping = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_" , id , "_libsize.rds"))
+  return(current.mapping)
+})
+mapping = do.call(cbind , mapping)
 mapping = mapping[, colnames(mapping) %in% meta$uniqueID ]
 
 mapping.atlas = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_atlas2atlas.rds"))
@@ -81,10 +79,6 @@ mapping = mapping[, order(colnames(mapping))]
 sce.seq = sce.seq[,order(colnames(sce.seq))]
 counts.atlas = assay(sce.atlas, "logcounts")
 genes = rownames(sce.seq)
-
-# spatial coherence score
-spat.coherence = readRDS(paste0(root.dir, "data/8_5/stitching/seq_spatialCoherency_withinZ.rds"))
-spat.coherence = spat.coherence$n.neigh_1
 
 
 ```
@@ -139,65 +133,6 @@ saveRDS(gene.score.allEmbryoZ, file =  paste0( root.dir, "data/8_5/stitching/gen
 
 ```
 
-## Spatially coherent
-
-Spatially coherent cells = spat. coherence > 0.7 (dist = 1, within z) or can not be asigned
-
-```{r gene-score-spatCoherent, message=FALSE, warning=FALSE}
-
-
-
-spat.coherent.thresh = 0.7 
-
-unq.embryo_z = unique(meta$embryo_z)
-gene.score.allEmbryoZ = bplapply(unq.embryo_z, function(x){
-  gene.score.oneEmbryoZ = lapply(genes, function(current.gene){
-    current.atlas = counts.atlas[rownames(counts.atlas) == current.gene,]
-    current.spatCoherence = spat.coherence[rownames(spat.coherence) == current.gene,]
-    
-    cells.spatCoherent = names(current.spatCoherence[is.na(current.spatCoherence) | current.spatCoherence >= spat.coherent.thresh])
-    
-    # closest cell
-    current.mapping = mapping[rownames(mapping) == paste0( current.gene, "_1"), colnames(mapping) %in% meta$uniqueID[meta$embryo_z == x]]
-    # select only spat coherent cells
-    current.mapping = current.mapping[names(current.mapping) %in% cells.spatCoherent]
-    
-    current.mapping.atlas = mapping.atlas[rownames(mapping.atlas) == paste0( current.gene, "_1"), ]
-    tab = table(c(current.mapping))
-    cells = names(tab) 
-    imputed = sapply(current.mapping.atlas[cells], function(x){
-      return( mean(current.atlas[x]) )
-    })
-    df = data.frame(atlas = current.atlas[cells], imputed = imputed ) 
-    score.closestCell <- cov.wt(df, wt = as.numeric(tab), cor = TRUE)
-    
-    # all cells
-    current.mapping = mapping[grepl(paste0( current.gene, "_"), rownames(mapping)), colnames(mapping) %in% meta$uniqueID[meta$embryo_z == x]]
-    # select only spat coherent cells
-    current.mapping = current.mapping[, colnames(current.mapping) %in% cells.spatCoherent]
-    
-    current.mapping.atlas = mapping.atlas[grepl(paste0( current.gene, "_"), rownames(mapping.atlas)),]
-    tab = table(c(current.mapping))
-    cells = names(tab) 
-    df = data.frame(atlas = current.atlas[cells], imputed = apply(current.mapping.atlas[, cells] , 2, function(x) mean(current.atlas[x]) ) ) 
-    score.weightedAll <- cov.wt(df, wt = as.numeric(tab), cor = TRUE)
-    score.unweightedAll <- cov.wt(df, wt = as.numeric(tab), cor = TRUE)
-    
-    out = data.frame( gene = current.gene,  embryo_z = x, 
-                      score.closestCell = as.numeric(score.closestCell$cor[1,2]),
-                      score.weightedAll = as.numeric(score.weightedAll$cor[1,2]),
-                      score.unweightedAll = as.numeric(score.unweightedAll$cor[1,2])
-                      )
-    return(out)
-  })
-  gene.score.oneEmbryoZ = do.call(rbind, gene.score.oneEmbryoZ)
-  return(gene.score.oneEmbryoZ)
-}, BPPARAM = mcparam)
-gene.score.allEmbryoZ = do.call(rbind, gene.score.allEmbryoZ)
-saveRDS(gene.score.allEmbryoZ, file =  paste0( root.dir, "data/8_5/stitching/geneScore_spatCoherent_performance.rds"))
-
-
-```
 
 
 #Session Info
