@@ -1,9 +1,9 @@
 # load embryo 8.5 data
 load_embryo_8.5 = function(dir = "local"){
-  
   require(SingleCellExperiment)
   require(scater)
   
+  # load sce for seqFISH
   if (dir == "cluster") {
     data.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/data/8_5/source/"
   } else {
@@ -15,10 +15,8 @@ load_embryo_8.5 = function(dir = "local"){
   assay(sce, "cpm") <- logcounts(scater::logNormCounts(sce, size_factors = sce$total))
   assay(sce, "cpm_wo_xist") <- logcounts(scater::logNormCounts(sce, size_factors = as.numeric( sce$total - counts( sce["Xist"] )) ))
   
-  
   meta = colData(sce)
   meta = data.frame(meta)
-  
   # rename Cavin3 --> Prkcdbp
   rownames.sce = rownames(sce)
   rownames.sce[rownames.sce == "Cavin3"] = "Prkcdbp"
@@ -53,136 +51,7 @@ adjust_atlas_to_seq = function(sce.atlas, meta.atlas, sce.seq){
   invisible(0)
 }
 
-seqPCAandBatchCorrect = function(counts.seq, counts.atlas, meta.atlas, nPC){
-  require(irlba)
-  require(batchelor)
-  set.seed(2020)
-  unq.samples = unique(meta.atlas$sample)
-  counts.seq = cosineNorm(counts.seq)
-  counts.atlas = cosineNorm(counts.atlas)
-  counts.joint = cbind(counts.atlas, counts.seq)
-  counts.pca = prcomp_irlba(t( counts.joint ), n = nPC)$x
-  rownames(counts.pca) = colnames(counts.joint) 
-  atlas.pca = counts.pca[1:dim(counts.atlas)[2],]
-  seq.pca = counts.pca[-(1:dim(counts.atlas)[2]),]
-  
-  atlas.pca.bySamples = lapply(unq.samples, function(x){
-    out = atlas.pca[meta.atlas$sample == x,]
-    return(out)
-  })
-  # batch correct atlas
-  atlas.corrected = do.call(reducedMNN, c(atlas.pca.bySamples))
-  atlas.corrected = atlas.corrected$corrected
-  # correction for corrected atlas + seq
-  joint.corrected = reducedMNN(atlas.corrected, seq.pca)
-  joint.corrected = joint.corrected$corrected
-  
-  atlas = 1:nrow(atlas.corrected)
-  out = list("atlas" = joint.corrected[atlas,], "seq" = joint.corrected[-atlas,])
-  return(out)
-}
 
-map_KNN = function(atlas, seq, meta.atlas, meta, k.neigh, mcparam){
-  knns = queryKNN(atlas, seq, k = k.neigh, get.index = TRUE, get.distance = TRUE, BPPARAM = mcparam)
-  k.mapped = t(apply(knns$index, 1, function(x) meta.atlas$cell[x]))
-  celltypes = t(apply(k.mapped, 1, function(x) meta.atlas$celltype[match(x, meta.atlas$cell)]))
-  stages = t(apply(k.mapped, 1, function(x) meta.atlas$stage[match(x, meta.atlas$cell)]))
-  theiler = t(apply(k.mapped, 1, function(x) meta.atlas$theiler[match(x, meta.atlas$cell)]))
-  samples = t(apply(k.mapped, 1, function(x) meta.atlas$sample[match(x, meta.atlas$cell)]))
-  mapping = lapply(1:dim(knns$index)[1], function(x){
-    out = list(cells.mapped = k.mapped[x,],
-               celltypes.mapped = celltypes[x,],
-               distances.mapped = knns$distance[x,], 
-               stages.mapped = stages[x,],
-               theiler.mapped = theiler[x,],
-               samples.mapped = samples[x,])
-    return(out)
-  })
-  names(mapping) = meta$uniqueID
-  return(mapping)
-}
-
-# add regressed by CT assay
-addCTregressedLogcounts = function(sce, assay.type, meta){
-  # make sure meta and sce are aligned
-  meta = meta[order(meta$uniqueID),]
-  sce = sce[, order(colnames(sce))]
-  
-  counts = assay(sce, assay.type)
-  counts.perGene = apply(counts, 1, function(x){
-    df = data.frame(CT = meta$CT, counts = as.numeric(x), uniqueID = meta$uniqueID, embryo = meta$embryo)
-    stat = df%>% group_by(CT, embryo) %>% 
-      dplyr::summarize(mean.CT = mean(counts, na.rm=T) , sd.CT = sd(counts, na.rm=T))
-    # change sd 0/NA to sd 1 (so we don't divide to 0)
-    stat$sd.CT[stat$sd.CT == 0 | is.na(stat$sd.CT)] <- 1
-    df = merge(df, stat, by = c("CT", "embryo"), all.x=T)
-    df = df[order(df$uniqueID),]
-    return( as.numeric( (df$counts - df$mean.CT)/df$sd.CT ) )
-  })
-  regressed.counts = as.data.frame( t(counts.perGene) )
-  rownames(regressed.counts) = rownames(counts)
-  colnames(regressed.counts) = meta$uniqueID
-  assay(sce, paste0("CT_regressed.", assay.type)) <- regressed.counts
-  
-  return(sce)
-}
-
-
-load_data_atlas = function(normalise = TRUE, remove_doublets = FALSE, remove_stripped = FALSE, 
-                           load_corrected = FALSE, rownames_ensembl = TRUE, stages = c("E8.25", "E8.5") ){
-  if(load_corrected & (!remove_doublets | !remove_stripped)){
-    message("Using corrected PCs, also removing doublets + stripped now.")
-    remove_doublets = TRUE
-    remove_stripped = TRUE
-  }
-  require(scran)
-  require(scater)
-  require(SingleCellExperiment)
-  require(Matrix)
-  
-  root.dir = "/nfs/research1/marioni/jonny/embryos/data/"
-  counts = readRDS(paste0( root.dir, "raw_counts.rds"))
-  genes = read.table(paste0( root.dir, "genes.tsv"), stringsAsFactors = F)
-  meta = read.table(paste0( root.dir, "meta.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
-  
-  if (!rownames_ensembl){
-    rownames(counts) = genes[,2] # systematic name
-  } else {
-    rownames(counts) = genes[,1] #ensembl
-  }
-  colnames(counts) = meta$cell
-  
-  sce = SingleCellExperiment(assays = list("counts" = counts))
-  
-  if(normalise){
-    sfs = read.table(paste0(root.dir, "sizefactors.tab"), stringsAsFactors = F)[,1]
-    sizeFactors(sce) = sfs
-    sce = scater::normalize(sce)
-  }
-  if(remove_doublets){
-    sce = scater::normalize(sce[,!meta$doublet])
-    meta = meta[!meta$doublet,]
-  }
-  if(remove_stripped){
-    sce = scater::normalize(sce[,!meta$stripped])
-    meta = meta[!meta$stripped, ]
-  }
-  if(load_corrected){
-    corrected = readRDS(paste0(root.dir, "corrected_pcas.rds"))
-    assign("corrected", corrected, envir = .GlobalEnv)
-  }
-  # only keep relevant stages
-  idx = meta$stage %in% stages
-  meta = meta[idx,]
-  sce = sce[, idx]
-  sfs = sfs[idx]
-  
-  assign("genes.atlas", genes, envir = .GlobalEnv)
-  assign("meta.atlas", meta, envir = .GlobalEnv)
-  assign("sce.atlas", sce, envir = .GlobalEnv)
-  assign("sfs.atlas", sfs, envir = .GlobalEnv)
-  invisible(0)
-}
 
 getmode <- function(v, dist) {
   tab = table(v)
@@ -197,128 +66,80 @@ getmode <- function(v, dist) {
   }
 }
 
-getHVGs = function(sce, min.mean = 1e-3, gene_df = genes){
-  require(biomaRt)
-  trend = scran::trendVar(sce, loess.args = list(span = 0.05), use.spikes = F)
-  decomp = scran::decomposeVar(sce, fit = trend)
-  decomp = decomp[decomp$mean > min.mean,]
+
+getSegmentationVerticesDF = function(DF,
+                                     xname = "segmentation_vertices_x_global",
+                                     yname = "segmentation_vertices_y_global",
+                                     othercols = c("uniqueID","z")) {
+  # DF is a DataFrame object
+  # othercols is the others to keep
   
-  #exclude sex genes
-  xist = "ENSMUSG00000086503"
-  xist = "Xist"
-  # mouse_ensembl = useMart("ensembl")
-  # mouse_ensembl = useDataset("mmusculus_gene_ensembl", mart = mouse_ensembl)
-  # gene_map = getBM(attributes=c("ensembl_gene_id", "chromosome_name"), filters = "ensembl_gene_id", values = rownames(decomp), mart = mouse_ensembl)
-  # ychr = gene_map[gene_map[,2] == "Y", 1]
-  #ychr = read.table("/nfs/research1/marioni/jonny/embryos/data/ygenes.tab", stringsAsFactors = FALSE)[,2]
-  #ychr = read.table("/Users/alsu/Develop/FetalAlcoholSyndrome/data/ygenes.tab", stringsAsFactors = FALSE)[,1]
+  long_x = unlist(DF[,xname])
+  long_y = unlist(DF[,yname])
   
-  other = c("tomato-td") #for the chimera
-  decomp = decomp[!rownames(decomp) %in% c(xist, other),]
+  if (length(long_x) != length(long_y)) stop("x and y need to be same length")
   
-  decomp$FDR = p.adjust(decomp$p.value, method = "fdr")
-  return(rownames(decomp)[decomp$p.value < 0.05])
+  long_xy = data.frame(
+    long_x,
+    long_y
+  )
+  colnames(long_xy) <- c(xname, yname)
+  
+  long_DF = cbind(
+    rep(DF[,othercols], times = unlist(lapply(DF[,xname], length))),
+    long_xy
+  )
+  
+  return(as.data.frame(long_DF))
 }
 
-
-
-denoisingCounts = function(counts, meta, neigh.net, n.neigh, avg_metric, mcparam){
-  # subgraph neigh.net to the vertices we have
-  vertices.neigh.net = as_ids( V(neigh.net) )
-  vertices.neigh.net = intersect(vertices.neigh.net, colnames(counts))
-  neigh.net = subgraph(neigh.net, vertices.neigh.net)
-  adjacency.list = adjacent_vertices(neigh.net, V(neigh.net), mode = "all")
+add_scalebar = function(dist_um = 250, x = 2.75, y = -3.20, ...) {
+  # this is a quantity to add to an existing ggplot
   
-  denoised.counts.perCell = bplapply(colnames(counts), function(cell){
-    current.CT = meta$celltype_mapped_denoised[meta$uniqueID == cell]
-    current.adjacency.list = adjacency.list[names(adjacency.list) == cell]
-    if (!is_empty(current.adjacency.list)){
-      
-      if (n.neigh == 1){
-        neighbor.cells = as_ids(current.adjacency.list[[1]])
-      } else if (n.neigh == 2){
-        neighbor.cells = as_ids(current.adjacency.list[[1]])
-        second.neighbor.cells = sapply(neighbor.cells, function(x){
-          current.second.adjacency.list = adjacency.list[names(adjacency.list) == x]
-          return(as_ids(current.second.adjacency.list[[1]]))
-        })
-        neighbor.cells = unique(c(neighbor.cells, unlist(second.neighbor.cells)))
-      }
-      neighbor.CT = sapply(neighbor.cells, function(x) meta$celltype_mapped_denoised[meta$uniqueID == x])
-      cells.sameCT = c( cell , names(neighbor.CT)[neighbor.CT == current.CT])
-      if (length(cells.sameCT) > 1){
-        current.counts = counts[,cells.sameCT]
-        if (avg_metric == "mean"){
-          current.counts = apply(current.counts, 1, mean)
-        } else if (avg_metric == "median"){
-          current.counts = apply(current.counts, 1, median)
-        } 
-        return(current.counts)
-      } else {
-        return(counts[,cell])
-      }
-    } else {
-      return(counts[,cell])
-    }
-  }, BPPARAM = mcparam)
-  denoised.counts.perCell = do.call(cbind, denoised.counts.perCell)
-  colnames(denoised.counts.perCell) = colnames(counts)
-  return(denoised.counts.perCell)
-}
-
-binaryDenoisingCell = function(x, original.counts){
-  if (sum(x) > length(x)/2){
-    return(1)
-  } else if (sum(x) < length(x)/2){
-    return(0)
-  } else {
-    return(original.counts)
-  }
-}
-
-denoisingBinaryCounts = function(counts, meta, neigh.net, n.neigh, mcparam){
-  # subgraph neigh.net to the vertices we have
-  vertices.neigh.net = as_ids( V(neigh.net) )
-  vertices.neigh.net = intersect(vertices.neigh.net, colnames(counts))
-  neigh.net = subgraph(neigh.net, vertices.neigh.net)
-  adjacency.list = adjacent_vertices(neigh.net, V(neigh.net), mode = "all")
+  # dist_um is the distance for the scalebar in um, default 250um
+  # x and y are the coordinates to place the scalebar
+  # usage: to add to a ggplot object like "g + add_scalebar()"
   
-  denoised.counts.perCell = bplapply(colnames(counts), function(cell){
-    current.CT = meta$celltype_mapped_denoised[meta$uniqueID == cell]
-    current.adjacency.list = adjacency.list[names(adjacency.list) == cell]
-    if (!is_empty(current.adjacency.list)){
-      
-      if (n.neigh == 1){
-        neighbor.cells = as_ids(current.adjacency.list[[1]])
-      } else if (n.neigh == 2){
-        neighbor.cells = as_ids(current.adjacency.list[[1]])
-        second.neighbor.cells = sapply(neighbor.cells, function(x){
-          current.second.adjacency.list = adjacency.list[names(adjacency.list) == x]
-          return(as_ids(current.second.adjacency.list[[1]]))
-        })
-        neighbor.cells = unique(c(neighbor.cells, unlist(second.neighbor.cells)))
-      }
-      neighbor.CT = sapply(neighbor.cells, function(x) meta$celltype_mapped_denoised[meta$uniqueID == x])
-      cells.sameCT = c( cell , names(neighbor.CT)[neighbor.CT == current.CT])
-      if (length(cells.sameCT) > 1){
-        current.counts = counts[,cells.sameCT]
-        original.counts = counts[,cell]
-        current.denoised.counts = sapply(1:nrow(current.counts), function(current.gene){
-          return(binaryDenoisingCell(current.counts[current.gene,], original.counts[current.gene]))
-        })
-        return(current.denoised.counts)
-      } else {
-        return(counts[,cell])
-      }
-    } else {
-      return(counts[,cell])
-    }
-  }, BPPARAM = mcparam)
-  denoised.counts.perCell = do.call(cbind, denoised.counts.perCell)
-  colnames(denoised.counts.perCell) = colnames(counts)
-  rownames(denoised.counts.perCell) = rownames(counts)
-  return(denoised.counts.perCell)
+  # useful optional argument is box.col = "white"
+  
+  # need to make sure that ggplot of interest doesn't have group aesthetic
+  # defined in the ggplot, but in the geom_polygon itself
+  
+  require(ggsn)
+  add = ggsn::scalebar(location = "bottomright",
+                       dist = dist_um/227.74, dist_unit = "units", 
+                       transform = FALSE,
+                       x.min = x, x.max = x,
+                       y.min = y, y.max = y,
+                       height = 0.2, 
+                       box.fill = "black",
+                       st.size = 0,
+                       inherit.aes = FALSE,
+                       ...)
+  return(add)
 }
 
-
-
+# function to rotate the embryos
+rotateDF = function(DF, 
+                    xname = "segmentation_vertices_x_global_affine", 
+                    yname = "segmentation_vertices_y_global_affine", 
+                    ang = 0) {
+  # ang is a numeric vector named three values corresponding to embryo1, embryo2, and embryo3
+  
+  ang_long = ang[as.character(DF$embryo)]
+  ang_rad = ang_long/180
+  
+  x = DF[,xname]
+  y = DF[,yname]
+  
+  x_turn = x*cos(ang_rad) - y*sin(ang_rad)
+  y_turn = x*sin(ang_rad) + y*cos(ang_rad)
+  
+  # reset the columns and then return the DF
+  
+  DF[,xname] <- x_turn
+  DF[,yname] <- y_turn
+  
+  return(DF)
+  
+}
