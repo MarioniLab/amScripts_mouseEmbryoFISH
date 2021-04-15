@@ -1,5 +1,5 @@
 ---
-title: "Imputation - comparison between smFISH mesured counts and imputation"
+title: "Imputation - comparison between smFISH measured counts and imputed values."
 output:
   BiocStyle::html_document:
     code_folding: hide
@@ -77,6 +77,7 @@ sce.upper = sce.upper[, colnames(sce.upper) %in% meta$uniqueID]
 sce = sce[, colnames(sce) %in% meta$uniqueID]
 sce.upper = sce.upper[, order(colnames(sce.upper))]
 sce = sce[, order(colnames(sce))]
+# add normalisation by libsize (using seq-genes) - alike to seq dataset
 assay(sce.upper, "cpm_wo_xist") <- logcounts(scater::logNormCounts(sce.upper, size_factors = as.numeric( sce$total - counts( sce["Xist"] )) ))
 counts.sm = assay(sce.upper, "cpm_wo_xist")
 genes = rownames(counts.sm)
@@ -105,6 +106,7 @@ celltype.seq = sapply(1:ncol(sce.atlas) , function(i) {
 })
 sce.atlas$celltype.seq = celltype.seq
 counts.atlas = logcounts(sce.atlas)
+
 
 ```
 

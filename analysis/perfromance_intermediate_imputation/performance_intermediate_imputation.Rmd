@@ -1,5 +1,5 @@
 ---
-title: "Pipleine to assess imputation: performance, cell mapping stability and others."
+title: "Pipleine to evaluate intermediate imputation."
 output:
   BiocStyle::html_document:
     code_folding: hide
@@ -62,7 +62,6 @@ meta.CT = rownames_to_column(meta.CT, var = "uniqueID")
 meta = merge(meta, meta.CT, all.x = T, all.y = F)
 CTs.2discard = c("Low quality")
 meta = meta[!meta$celltype_mapped_refined %in% CTs.2discard, ]
-#meta = meta[,c("uniqueID", "embryo", "z", "x_global_affine", "y_global_affine", "celltype_mapped_refined")]
 meta$embryo_z = paste0(meta$embryo, "_", meta$z)
 
 # performance
@@ -143,7 +142,6 @@ p <- ggplot(stat, aes(x = embryo_z_title, y = corr.ratio, fill = embryo_z_title)
   scale_y_continuous(breaks=c(0, 0.5, 1, 1.5)) + ylim(c(-0.5,2.5))
 p
 ggsave(filename = paste0(figures.dir, "sup/performance_violins.png"), plot = p, width = 9, height = 7)
-
 
 
 ```

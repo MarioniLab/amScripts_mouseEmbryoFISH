@@ -1,5 +1,5 @@
 ---
-title: "smFISH genes: assessment of the dependance between intensties and channels."
+title: "smFISH genes: assessment of the dependance between intensties and channels; hyb rounds."
 output:
   BiocStyle::html_document:
     code_folding: hide
@@ -21,7 +21,6 @@ Look into which parameters affect manual threshold.
 **Gene = channelLabel + folderLabel.**
 **ID = position + gene.** 
 
-**Discard channel 1, pos 39,40,43,44.**
 
 ```{r load_data, message=FALSE}
 

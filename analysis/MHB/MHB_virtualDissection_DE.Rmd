@@ -82,32 +82,6 @@ boundary_polygons = getSegmentationVerticesDF(colData(sce.seq),
 boundary_polygons = merge(boundary_polygons, meta[, c("uniqueID", "celltype_mapped_refined")], all.x = F, all.y = T)
 
 
-add_scalebar = function(dist_um = 250, x = 2.75, y = -3.20, ...) {
-  # this is a quantity to add to an existing ggplot
-  
-  # dist_um is the distance for the scalebar in um, default 250um
-  # x and y are the coordinates to place the scalebar
-  # usage: to add to a ggplot object like "g + add_scalebar()"
-  
-  # useful optional argument is box.col = "white"
-  
-  # need to make sure that ggplot of interest doesn't have group aesthetic
-  # defined in the ggplot, but in the geom_polygon itself
-  
-  require(ggsn)
-  add = ggsn::scalebar(location = "bottomright",
-                       dist = dist_um/227.74, dist_unit = "units", 
-                       transform = FALSE,
-                       x.min = x, x.max = x,
-                       y.min = y, y.max = y,
-                       height = 0.2, 
-                       box.fill = "black",
-                       st.size = 0,
-                       inherit.aes = FALSE,
-                       ...)
-  return(add)
-}
-
 
 ```
 

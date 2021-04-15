@@ -1,5 +1,5 @@
 ---
-title: "Pipleine to save prediction scores for final imputation."
+title: "Pipleine to save prediction scores for final imputation into readable format."
 output:
   BiocStyle::html_document:
     code_folding: hide
@@ -85,15 +85,18 @@ stat = stat[, c("gene" , "score.weighted" , "embryo_z")]
 stat$score.weighted[is.na(stat$score.weighted)] = eps
 stat$score.weighted[stat$score.weighted < eps] = eps
 
+# per gene
 stat.per_gene = as.data.frame(stat %>% group_by(gene) %>% 
                                 dplyr::summarise(median_prediction = median(score.weighted)))
 
 stat.per_gene.reduced = stat.per_gene[stat.per_gene$median_prediction > corr.thresh , ]
 stat.per_gene.reduced = stat.per_gene.reduced[order(stat.per_gene.reduced$median_prediction, decreasing = T), ]
+# add rank
 stat.per_gene.reduced$rank_prediction = c(1:nrow(stat.per_gene.reduced))
 write.csv(stat.per_gene.reduced , paste0(root.dir , "data/sup_tables/predictionStat_perGene.csv"), row.names = FALSE)
 
 
+# per gene/embryo/z
 stat.reduced = stat[stat$score.weighted > corr.thresh , ]
 stat.reduced = lapply(unique(stat.reduced$embryo_z) , function(embryo_z){
   current.stat = stat.reduced[stat.reduced$embryo_z == embryo_z , ]
@@ -110,7 +113,6 @@ stat.reduced$embryo_z[stat.reduced$embryo_z == "embryo2_5"] = "Embryo2.2"
 stat.reduced$embryo_z[stat.reduced$embryo_z == "embryo3_2"] = "Embryo3.1"
 stat.reduced$embryo_z[stat.reduced$embryo_z == "embryo3_5"] = "Embryo3.2"
 write.csv(stat.reduced , paste0(root.dir , "data/sup_tables/predictionStat_perGene_EmbryoZ.csv"), row.names = FALSE)
-
 
 
 
