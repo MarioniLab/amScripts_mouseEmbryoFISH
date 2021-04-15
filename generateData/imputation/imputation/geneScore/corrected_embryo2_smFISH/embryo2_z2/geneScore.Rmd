@@ -1,5 +1,5 @@
 ---
-title: "Gene score"
+title: "Gene score - corrected (i.e. deleting FOVs that have substantial batch effect)"
 output:
   BiocStyle::html_document:
     code_folding: hide
@@ -14,7 +14,7 @@ output:
     theme: united
 ---
 
-This script calculates gene score for embryo2 for smFISH genes where funky FOVs are discarded.
+Embryo2.1
 
 # Load dependencies and source data
 

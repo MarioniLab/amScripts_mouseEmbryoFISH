@@ -1,5 +1,5 @@
 ---
-title: "Gene score"
+title: "Gene prediction score for final imputation"
 output:
   BiocStyle::html_document:
     code_folding: hide
@@ -14,9 +14,7 @@ output:
     theme: united
 ---
 
-Settings:
-
-nn = 25
+Embryo 2.1
 
 # Load dependencies and source data
 
@@ -46,6 +44,9 @@ library(purrr)
 root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
 source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
 
+embryo = "embryo2"
+z = 2
+
 # load seq embryos
 load_embryo_8.5(dir = "cluster")
 #load_embryo_8.5(dir = "local")
@@ -60,14 +61,13 @@ meta.CT = readRDS(paste0(root.dir, "data/8_5/source/celltype_annotation_refined.
 meta.CT = rownames_to_column(meta.CT, var = "uniqueID")
 meta = merge(meta, meta.CT, all.x = T, all.y = F)
 meta$embryo_z = paste0(meta$embryo, "_", meta$z)
-#CTs.2discard = c("Erythroid", "ExE endoderm", "Blood progenitors", "Low quality")
 CTs.2discard = c("Low quality")
 meta = meta[!meta$celltype_mapped_refined %in% CTs.2discard, ]
-meta = meta[meta$embryo_z == "embryo2_2" , ]
+meta = meta[meta$embryo_z == paste(embryo , "_" , z) , ]
 sce.seq = sce.seq[, colnames(sce.seq) %in% meta$uniqueID ]
 
 # load mappings
-mapping = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo2z2_libsize.rds"))
+mapping = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_" , embryo , "z", z , "_libsize.rds"))
 mapping = mapping[, colnames(mapping) %in% meta$uniqueID ]
 
 mapping.atlas = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_atlas2atlas.rds"))
@@ -104,13 +104,12 @@ gene.score = bplapply(genes, function(current.gene){
   return(out)
 }, BPPARAM = mcparam)
 gene.score = do.call(rbind, gene.score)
-saveRDS(gene.score, file =  paste0( root.dir, "data/8_5/stitching/imputation/geneScore/geneScore_imputation_embryo2z2.rds"))
+saveRDS(gene.score, file =  paste0( root.dir, "data/8_5/stitching/imputation/geneScore/geneScore_imputation_" , embryo , "z" , z , ".rds"))
 
 
 
 
 ```
-
 
 
 #Session Info

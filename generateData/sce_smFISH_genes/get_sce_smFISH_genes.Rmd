@@ -1,5 +1,5 @@
 ---
-title: "QC of smFISH data."
+title: "Generate SingleCellExperiment for smFISH data"
 output:
   BiocStyle::html_document:
     code_folding: hide
@@ -43,7 +43,6 @@ load_embryo_8.5(dir = "local")
 
 # read gene-key file for smFISH
 sm.key = read.table(paste0(root.dir, "data/8_5/source/smFISH/smFISH__gene_key__new.tab"), header = T, sep = "\t")
-sm.anno = read.table(paste0( root.dir, "data/geneInfo/anno/smFISH.tab"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, comment.char = "$")
 
 # load atlas
 sce.atlas = readRDS(paste0(root.dir, "data/reducedAtlas/E8_25__E8_5.rds"))

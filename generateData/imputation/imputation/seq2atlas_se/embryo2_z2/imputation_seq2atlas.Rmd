@@ -1,5 +1,5 @@
 ---
-title: "Imputation - seq."
+title: "Standard errors for imputation"
 output:
   BiocStyle::html_document:
     code_folding: hide
@@ -14,12 +14,12 @@ output:
     theme: united
 ---
 
+Embryo 2.1
 
 # Load dependencies and source data
 
 ```{r load_data, message=FALSE}
 
-#
 library(Matrix)
 library(scran)
 library(BiocParallel)
@@ -42,6 +42,9 @@ library(dplyr)
 root.dir = "/nfs/research1/marioni/alsu/spatial/mouse_embryo/"
 source(paste0(root.dir, "amScripts_mouseEmbryoFISH/core_functions.R"))
 
+embryo = "embryo2"
+z = 2
+
 # load atlas 
 sce.atlas = readRDS(paste0(root.dir, "data/reducedAtlas/E8_25__E8_5.rds"))
 sce.atlas = sce.atlas[, sce.atlas$stage == "E8.5"]
@@ -49,7 +52,7 @@ counts.atlas = logcounts(sce.atlas)
 counts.atlas = assay(sce.atlas, "logcounts")
 
 # load mapping
-mapping = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_embryo2z2_libsize.rds"))
+mapping = readRDS(paste0( root.dir, "data/8_5/stitching/mapping_seq2atlas_" , embryo , "z" , z , "_libsize.rds"))
 
 
 # se function with removing NAs
@@ -77,15 +80,16 @@ getLogcountsSE = function(cells, weights){
   return(current.counts.se) 
 } 
 
+
 logcounts.imputation_se.seq = bplapply(1:ncol(mapping), function(x){
   current.cell = mapping[,x]
   current.cell.stat = table(current.cell)
-  current.counts = getLogcountsSE(names(current.cell.stat), as.numeric( current.cell.stat )) 
+  current.counts = getLogcountsSE(names(current.cell.stat), as.numeric( current.cell.stat ) ) 
   return(current.counts)
 }, BPPARAM = mcparam)
 logcounts.imputation_se.seq = do.call(cbind, logcounts.imputation_se.seq)
 colnames(logcounts.imputation_se.seq) = colnames(mapping)
-saveRDS(logcounts.imputation_se.seq, file =  paste0( root.dir, "data/8_5/stitching/imputation/imputation_seq2atlas_logcounts_se_embryo2z2.rds"))
+saveRDS(logcounts.imputation_se.seq, file =  paste0( root.dir, "data/8_5/stitching/imputation/imputation_seq2atlas_logcounts_se_" , embryo , "z" , z , ".rds"))
 
 
 ```
